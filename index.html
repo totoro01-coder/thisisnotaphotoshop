@@ -1162,18 +1162,25 @@ renderLayers(); drawMain();
 // PRINT
 // ══════════════════════════════════════════════
 document.getElementById('btn-print').addEventListener('click',()=>{
-  // merge all canvases into a single image for printing
   const tmp=document.createElement('canvas'); tmp.width=W; tmp.height=H;
   const tc=tmp.getContext('2d');
+  tc.fillStyle='white'; tc.fillRect(0,0,W,H);
   tc.drawImage(mainCanvas,0,0); tc.drawImage(stampCanvas,0,0);
   tc.drawImage(brushCanvas,0,0); tc.drawImage(scoreCanvas,0,0);
-  tc.fillStyle='rgba(0,0,0,0.4)'; tc.font='9px IBM Plex Mono';
+  tc.fillStyle='rgba(0,0,0,0.5)'; tc.font='9px IBM Plex Mono';
   tc.fillText('Fake Adobe™  Sound Score  '+new Date().toLocaleString('ko-KR'),18,H-7);
+  const dataUrl=tmp.toDataURL('image/png');
 
-  // put into hidden print frame
-  const frame=document.getElementById('print-frame');
-  frame.innerHTML='<img src="'+tmp.toDataURL('image/png')+'" style="width:100%;height:auto">';
-  window.print();
+  // open a new window with just the image and print it
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Sound Score</title>
+    <style>*{margin:0;padding:0;}body{background:white;}
+    img{width:100%;height:auto;display:block;}
+    @media print{img{width:100%;page-break-inside:avoid;}}
+    </style></head><body>
+    <img src="${dataUrl}" onload="window.print();window.close();">
+    </body></html>`);
+  win.document.close();
   document.getElementById('status-msg').textContent='인쇄 다이얼로그를 열었습니다';
 });
 
@@ -1218,30 +1225,35 @@ document.getElementById('btn-qr').addEventListener('click',()=>{
   const shareUrl=baseUrl+'?score='+encodeURIComponent(b64);
 
   // generate QR code
-  const qrCanvas=document.getElementById('qr-canvas');
-  qrCanvas.width=200; qrCanvas.height=200;
-
-  // use qrcode.js from CDN (loaded at bottom)
   if(typeof QRCode==='undefined'){
     document.getElementById('status-msg').textContent='QR 라이브러리 로딩 중... 잠시 후 다시 시도하세요';
     return;
   }
 
-  // clear previous
-  const qCtx=qrCanvas.getContext('2d');
-  qCtx.clearRect(0,0,200,200);
-
-  // qrcodejs uses a wrapper div, not canvas directly
   const qrWrap=document.getElementById('qr-wrap');
   qrWrap.innerHTML=''; // clear previous
-  new QRCode(qrWrap,{
-    text: shareUrl,
-    width: 200,
-    height: 200,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.M
-  });
+
+  if(typeof QRCode==='undefined'){
+    // fallback: show URL as text with copy button
+    qrWrap.innerHTML=`<div style="font-size:9px;font-family:'IBM Plex Mono',monospace;
+      color:#333;padding:8px;word-break:break-all;max-width:200px;line-height:1.4;
+      background:#f0f0f0;border-radius:2px;">QR 라이브러리를 불러오지 못했습니다.<br><br>
+      아래 URL을 복사하세요:</div>`;
+    document.getElementById('status-msg').textContent='QR 라이브러리 로딩 실패 — URL을 직접 복사하세요';
+  } else {
+    try{
+      new QRCode(qrWrap,{
+        text: shareUrl,
+        width: 200,
+        height: 200,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }catch(err){
+      qrWrap.textContent='QR 생성 실패: '+err.message;
+    }
+  }
 
   // show note count info
   const noteCount=allPts.length;
@@ -1249,6 +1261,7 @@ document.getElementById('btn-qr').addEventListener('click',()=>{
   document.getElementById('qr-note').textContent=
     `음표 ${noteCount}개 · 약 ${dur}초\nQR을 스캔하면 이 악보의 소리가 재현됩니다`;
   document.getElementById('qr-url').textContent=shareUrl.slice(0,80)+(shareUrl.length>80?'…':'');
+  document.getElementById('qr-url').dataset.fullurl=shareUrl;
 
   document.getElementById('qr-modal').classList.add('open');
   document.getElementById('status-msg').textContent='QR 공유 코드 생성됨';
@@ -1310,10 +1323,11 @@ function loadScoreFromUrl(){
 <div id="qr-modal">
   <div id="qr-box">
     <div id="qr-title">⬡ QR 공유 — Sound Score</div>
-    <div id="qr-wrap" style="background:white;padding:8px;border-radius:4px;"></div>
+    <div id="qr-wrap" style="background:white;padding:8px;border-radius:4px;min-width:200px;min-height:200px;display:flex;align-items:center;justify-content:center;"></div>
     <div id="qr-note"></div>
-    <div id="qr-url"></div>
-    <button class="bar-btn" id="qr-close" style="border-color:#3a6aaa;color:#7ab8ff;background:#1a2a3a;width:100%">닫기</button>
+    <div id="qr-url" style="cursor:pointer;text-decoration:underline;" title="클릭하여 복사"></div>
+    <button class="bar-btn" id="btn-copy-url" style="border-color:#3a6aaa;color:#7ab8ff;background:#1a2a3a;width:100%;margin-bottom:4px">🔗 URL 복사</button>
+    <button class="bar-btn" id="qr-close" style="width:100%">닫기</button>
   </div>
 </div>
 
@@ -1321,7 +1335,7 @@ function loadScoreFromUrl(){
 <div id="print-frame" style="display:none"></div>
 
 <!-- QR CODE LIBRARY -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
 // QR modal close — registered after modal HTML exists
 document.getElementById('qr-close').addEventListener('click',()=>{
@@ -1330,6 +1344,21 @@ document.getElementById('qr-close').addEventListener('click',()=>{
 document.getElementById('qr-modal').addEventListener('click',e=>{
   if(e.target===document.getElementById('qr-modal'))
     document.getElementById('qr-modal').classList.remove('open');
+});
+document.getElementById('btn-copy-url').addEventListener('click',()=>{
+  const url=document.getElementById('qr-url').dataset.fullurl||'';
+  if(!url) return;
+  navigator.clipboard.writeText(url).then(()=>{
+    document.getElementById('btn-copy-url').textContent='✓ 복사됨!';
+    setTimeout(()=>document.getElementById('btn-copy-url').textContent='🔗 URL 복사',2000);
+  }).catch(()=>{
+    // fallback
+    const el=document.createElement('textarea');
+    el.value=url; document.body.appendChild(el); el.select();
+    document.execCommand('copy'); document.body.removeChild(el);
+    document.getElementById('btn-copy-url').textContent='✓ 복사됨!';
+    setTimeout(()=>document.getElementById('btn-copy-url').textContent='🔗 URL 복사',2000);
+  });
 });
 // run after QR lib loads + after main init
 window.addEventListener('load',()=>{
