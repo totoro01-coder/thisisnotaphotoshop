@@ -166,9 +166,11 @@
 
   /* PRINT STYLES */
   @media print{
-    body>*{display:none!important;}
-    #print-frame{display:block!important;position:fixed;top:0;left:0;width:100%;height:100%;}
-    #print-frame img{width:100%;height:auto;}
+    *{visibility:hidden!important;}
+    #print-frame,#print-frame *{visibility:visible!important;}
+    #print-frame{display:block!important;position:fixed!important;
+      top:0;left:0;width:100%;height:100%;background:white;}
+    #print-frame img{width:100%;height:auto;display:block;}
   }
 </style>
 </head>
@@ -176,7 +178,7 @@
 
 <!-- MENUBAR -->
 <div id="menubar">
-  <span class="logo">Ps</span>
+  <span class="logo" style="color:#4a90d9">Fa</span>
   <span class="menu-item">파일(F)</span><span class="menu-item">편집(E)</span>
   <span class="menu-item">이미지(I)</span><span class="menu-item">레이어(L)</span>
   <span class="menu-item">문자(Y)</span><span class="menu-item">선택(S)</span>
@@ -1252,14 +1254,6 @@ document.getElementById('btn-qr').addEventListener('click',()=>{
   document.getElementById('status-msg').textContent='QR 공유 코드 생성됨';
 });
 
-document.getElementById('qr-close').addEventListener('click',()=>{
-  document.getElementById('qr-modal').classList.remove('open');
-});
-document.getElementById('qr-modal').addEventListener('click',e=>{
-  if(e.target===document.getElementById('qr-modal'))
-    document.getElementById('qr-modal').classList.remove('open');
-});
-
 // ══════════════════════════════════════════════
 // LOAD SCORE FROM URL PARAMS (QR scan restore)
 // ══════════════════════════════════════════════
@@ -1329,6 +1323,14 @@ function loadScoreFromUrl(){
 <!-- QR CODE LIBRARY -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+// QR modal close — registered after modal HTML exists
+document.getElementById('qr-close').addEventListener('click',()=>{
+  document.getElementById('qr-modal').classList.remove('open');
+});
+document.getElementById('qr-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('qr-modal'))
+    document.getElementById('qr-modal').classList.remove('open');
+});
 // run after QR lib loads + after main init
 window.addEventListener('load',()=>{
   loadScoreFromUrl();
