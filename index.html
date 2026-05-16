@@ -1211,18 +1211,25 @@ document.getElementById('btn-qr').addEventListener('click',()=>{
   // sort by time, compress timestamps to deltas
   allPts.sort((a,b)=>a.t-b.t);
   const t0=allPts[0].t;
-  const compressed=allPts.map(pt=>({
-    f:pt.f, p:pt.p, v:pt.v, n:pt.n,
-    d: Math.min(pt.t-t0, 99999) // delta ms from start
-  }));
 
-  // encode as compact JSON → base64 → URL param
-  const json=JSON.stringify(compressed);
-  const b64=btoa(unescape(encodeURIComponent(json)));
+  // AGGRESSIVE COMPRESSION — limit points & shrink each field
+  // max ~60 points to keep URL under QR limit (~1200 chars)
+  const MAX_PTS=60;
+  const step=Math.max(1, Math.floor(allPts.length/MAX_PTS));
+  const sampled=allPts.filter((_,i)=>i%step===0).slice(0,MAX_PTS);
 
-  // build share URL using current page origin + path
+  // encode as tiny CSV: f(3 digits),p(±2 digits),v(2 digits),d(5 digits)
+  // e.g. "220,+0.5,80,1234" per point, joined by ";"
+  const csv=sampled.map(pt=>{
+    const f=Math.round(pt.f);           // freq Hz integer
+    const p=Math.round(pt.p*10);        // pan *10 → -10..+10
+    const v=Math.round(pt.v*10);        // vol *10 → 0..10
+    const d=Math.min(Math.round((pt.t-t0)/10),9999); // delta /10ms, max 9999
+    return `${f},${p},${v},${d}`;
+  }).join(';');
+
   const baseUrl=location.origin+location.pathname;
-  const shareUrl=baseUrl+'?score='+encodeURIComponent(b64);
+  const shareUrl=baseUrl+'?s='+encodeURIComponent(csv);
 
   // generate QR code
   if(typeof QRCode==='undefined'){
@@ -1248,7 +1255,7 @@ document.getElementById('btn-qr').addEventListener('click',()=>{
         height: 200,
         colorDark: '#000000',
         colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
+        correctLevel: QRCode.CorrectLevel.L
       });
     }catch(err){
       qrWrap.textContent='QR 생성 실패: '+err.message;
@@ -1272,48 +1279,45 @@ document.getElementById('btn-qr').addEventListener('click',()=>{
 // ══════════════════════════════════════════════
 function loadScoreFromUrl(){
   const params=new URLSearchParams(location.search);
-  const encoded=params.get('score');
-  if(!encoded) return;
+  const csv=params.get('s');
+  if(!csv) return;
 
   try{
-    const json=decodeURIComponent(escape(atob(decodeURIComponent(encoded))));
-    const pts=JSON.parse(json);
-    if(!pts||!pts.length) return;
+    const pts=csv.split(';').map(row=>{
+      const [f,p,v,d]=row.split(',').map(Number);
+      return{
+        freq:f,
+        pan:p/10,
+        vol:v/10,
+        note:freqToNote(f),
+        t: d*10  // restore delta in ms
+      };
+    }).filter(pt=>pt.freq>0);
 
-    // put all points into the first layer as trails
-    // we need a dummy shape to attach them to
+    if(!pts.length) return;
+
     const layer=layers[0];
     if(!layer) return;
-
-    // create a reference shape if none exists
     if(!layer.shapes.length){
       const shape=makeShape('rect', W/2-30, H/2-30, 60, 60);
-      layer.shapes.push(shape);
-      selectedShapeId=shape.id;
+      layer.shapes.push(shape); selectedShapeId=shape.id;
     }
     const shape=layer.shapes[0];
-
-    // rebuild trails from compressed data
     const now=Date.now();
     layer.trails=pts.map(pt=>({
-      shapeId: shape.id,
-      x: shape.x, y: shape.y, w: shape.w, h: shape.h,
-      freq: pt.f, pan: pt.p, vol: pt.v, note: pt.n,
-      t: now + pt.d  // relative timing preserved
+      shapeId:shape.id, x:shape.x, y:shape.y, w:shape.w, h:shape.h,
+      freq:pt.freq, pan:pt.pan, vol:pt.vol, note:pt.note,
+      t:now+pt.t
     }));
-
     renderLayers(); drawMain();
     document.getElementById('status-msg').textContent=
       '공유된 악보 로드됨 ('+pts.length+'개 음표) — ▶ 재생으로 들어보세요';
-
-    // show a toast
     const fb=document.getElementById('sound-feedback');
     fb.textContent='♩ 공유 악보 로드됨 — 재생해보세요';
     fb.classList.add('show');
     setTimeout(()=>fb.classList.remove('show'),3000);
-
   }catch(e){
-    console.warn('score URL parse error', e);
+    console.warn('score URL parse error',e);
   }
 }
 
