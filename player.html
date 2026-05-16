@@ -164,8 +164,8 @@ function parseScore(){
   if(!csv) return false;
 
   try{
-    const pts=csv.split(';').map(row=>{
-      const parts=row.split(',').map(Number);
+    const pts=csv.split('|').map(row=>{
+      const parts=row.split('.').map(Number);
       if(parts.length<4) return null;
       const[f,p,v,d]=parts;
       if(!f||f<=0) return null;
@@ -175,13 +175,12 @@ function parseScore(){
     if(!pts.length) return false;
     scorePoints=pts;
 
-    // calculate total duration (sum of gaps, capped per gap)
     let dur=0;
     for(let i=0;i<pts.length-1;i++){
       const gap=pts[i+1].delta-pts[i].delta;
       dur+=Math.min(gap,1500);
     }
-    dur+=600; // tail
+    dur+=600;
     totalDur=Math.max(dur,500);
     return true;
   }catch(e){

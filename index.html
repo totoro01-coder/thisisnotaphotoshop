@@ -1218,18 +1218,22 @@ document.getElementById('btn-qr').addEventListener('click',()=>{
   const step=Math.max(1, Math.floor(allPts.length/MAX_PTS));
   const sampled=allPts.filter((_,i)=>i%step===0).slice(0,MAX_PTS);
 
-  // encode as tiny CSV: f(3 digits),p(±2 digits),v(2 digits),d(5 digits)
-  // e.g. "220,+0.5,80,1234" per point, joined by ";"
+  // encode as tiny CSV — use pipe | as separator (no URL encoding needed)
+  // format per point: freq.pan.vol.delta separated by |
   const csv=sampled.map(pt=>{
-    const f=Math.round(pt.f);           // freq Hz integer
-    const p=Math.round(pt.p*10);        // pan *10 → -10..+10
-    const v=Math.round(pt.v*10);        // vol *10 → 0..10
-    const d=Math.min(Math.round((pt.t-t0)/10),9999); // delta /10ms, max 9999
-    return `${f},${p},${v},${d}`;
-  }).join(';');
+    const f=Math.round(pt.f);
+    const p=Math.round(pt.p*10); // -10..+10
+    const v=Math.round(pt.v*10); // 0..10
+    const d=Math.min(Math.round((pt.t-t0)/10),9999);
+    return `${f}.${p}.${v}.${d}`;
+  }).join('|');
 
-  const baseUrl=location.origin+location.pathname;
-  const shareUrl=baseUrl+'?s='+encodeURIComponent(csv);
+  // build player URL robustly — works for /repo/, /repo/index.html, etc.
+  const origin=location.origin;
+  const pathDir=location.pathname.endsWith('/')
+    ? location.pathname
+    : location.pathname.substring(0,location.pathname.lastIndexOf('/')+1);
+  const shareUrl=origin+pathDir+'player.html?s='+csv;
 
   // generate QR code
   if(typeof QRCode==='undefined'){
@@ -1271,7 +1275,8 @@ document.getElementById('btn-qr').addEventListener('click',()=>{
   document.getElementById('qr-url').dataset.fullurl=shareUrl;
 
   document.getElementById('qr-modal').classList.add('open');
-  document.getElementById('status-msg').textContent='QR 공유 코드 생성됨';
+  // show in status bar too so user can verify player.html is in URL
+  document.getElementById('status-msg').textContent='QR → '+shareUrl.slice(0,70)+'...';
 });
 
 // ══════════════════════════════════════════════
