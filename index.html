@@ -85,7 +85,7 @@
   #canvas-container{position:relative;}
   #canvas-label{position:absolute;top:-20px;left:0;
     font-size:10px;color:var(--dim);font-family:'IBM Plex Mono',monospace;}
-  #stampCanvas,#scoreCanvas,#headCanvas,#brushCanvas,#drawPreview{
+  #stampCanvas,#scoreCanvas,#headCanvas,#brushCanvas,#drawPreview,#penCanvas{
     position:absolute;top:0;left:0;pointer-events:none;}
   #mainCanvas{display:block;box-shadow:0 0 0 1px #111;}
 
@@ -238,11 +238,12 @@
       🪣<div class="tool-swatch" id="bucket-swatch" style="background:#4a90d9"></div>
     </div>
     <div class="tool-sep"></div>
-    <div class="tool-btn" title="문자" style="font-size:16px;color:#555">T</div>
-    <div class="tool-btn" title="펜" style="font-size:13px;color:#555">✒</div>
+    <div class="tool-btn" id="tool-text" title="텍스트 툴 (T)" style="font-size:16px">T</div>
+    <!-- PEN TOOL — active -->
+    <div class="tool-btn" id="tool-pen" title="펜 툴 (P)" style="font-size:14px">✒</div>
     <div class="tool-sep"></div>
     <div class="tool-btn" title="손" style="font-size:14px;color:#555">✋</div>
-    <div class="tool-btn" title="확대" style="font-size:13px;color:#555">⊕</div>
+    <div class="tool-btn" id="tool-zoom" title="확대 (Z)" style="font-size:13px;color:#aaa">⊕</div>
 
     <!-- BRUSH POPUP -->
     <div class="tool-popup" id="brush-popup">
@@ -300,6 +301,7 @@
       <canvas id="scoreCanvas" width="540" height="390"></canvas>
       <canvas id="headCanvas"  width="540" height="390"></canvas>
       <canvas id="drawPreview" width="540" height="390"></canvas>
+      <canvas id="penCanvas"   width="540" height="390"></canvas>
       <div id="sound-feedback">♩</div>
     </div>
   </div>
@@ -423,6 +425,7 @@ const brushCanvas  = document.getElementById('brushCanvas');
 const scoreCanvas  = document.getElementById('scoreCanvas');
 const headCanvas   = document.getElementById('headCanvas');
 const previewCanvas= document.getElementById('drawPreview');
+const penCanvas    = document.getElementById('penCanvas');
 const vizCanvas    = document.getElementById('vizCanvas');
 const mCtx  = mainCanvas.getContext('2d');
 const stCtx = stampCanvas.getContext('2d');
@@ -430,6 +433,7 @@ const brCtx = brushCanvas.getContext('2d');
 const sCtx  = scoreCanvas.getContext('2d');
 const hCtx  = headCanvas.getContext('2d');
 const pCtx  = previewCanvas.getContext('2d');
+const penCtx= penCanvas.getContext('2d');
 const vCtx  = vizCanvas.getContext('2d');
 const W = mainCanvas.width, H = mainCanvas.height;
 
@@ -618,6 +622,7 @@ function drawMain(){
       }
     });
   });
+  drawTextLabels();
 }
 
 function drawStamps(){
@@ -750,28 +755,75 @@ function closeAllPopups(){
 }
 function setTool(name){
   currentTool=name;
+  // clear all active states
   document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
-  if(name==='move')   document.getElementById('tool-move').classList.add('active');
-  if(name==='brush')  document.getElementById('tool-brush').classList.add('active');
-  if(name==='shape')  document.getElementById('tool-shape').classList.add('active');
-  if(name==='bucket') document.getElementById('tool-bucket').classList.add('active');
+  // set active on correct button
+  const btnMap={move:'tool-move',brush:'tool-brush',shape:'tool-shape',bucket:'tool-bucket',pen:'tool-pen',text:'tool-text'};
+  if(btnMap[name]) document.getElementById(btnMap[name]).classList.add('active');
   closeAllPopups();
-  // brush size row visibility
   document.getElementById('brush-size-wrap').classList.toggle('show', name==='brush');
   mainCanvas.style.cursor=
-    name==='brush'?'crosshair':name==='shape'?'crosshair':name==='bucket'?'crosshair':'default';
-  const LABELS={move:'이동 툴',brush:'브러시 툴 — '+BRUSH_MODES[currentBrush].label,shape:'모양 툴',bucket:'채우기 툴'};
+    (name==='brush'||name==='shape'||name==='bucket'||name==='pen')?'crosshair':
+    name==='text'?'text':
+    'default';
+  const LABELS={
+    move:'이동 툴 (V)', brush:'브러시 툴 (B) — '+BRUSH_MODES[currentBrush].label,
+    shape:'모양 툴 (U)', bucket:'채우기 툴 (G)', pen:'펜 툴 (P)', text:'텍스트 툴 (T)'
+  };
   document.getElementById('opt-toolname').textContent=LABELS[name]||name;
   document.getElementById('prop-brush').textContent=name==='brush'?BRUSH_MODES[currentBrush].label:'—';
   document.getElementById('status-msg').textContent=
-    name==='brush'?BRUSH_MODES[currentBrush].label+' — 캔버스를 드래그하세요':
     name==='move'?'이동 툴 — 도형을 드래그하세요':
+    name==='brush'?BRUSH_MODES[currentBrush].label+' — 캔버스를 드래그하세요':
     name==='shape'?'모양 툴 — 레이어 선택 후 드래그':
+    name==='pen'?'펜 툴 — 클릭:점 추가 · 드래그:곡선 · 첫점 클릭:패스 닫기 · Esc/V:종료':
+    name==='text'?'텍스트 툴 — 캔버스를 클릭하여 텍스트 추가 (재생 시 TTS 읽기)':
     '스타일을 선택하세요';
+  if(name!=='pen' && typeof penReset==='function') penReset();
 }
 
-// Tool click handlers
-document.getElementById('tool-move').addEventListener('click',()=>setTool('move'));
+// ── TOOL CLICK HANDLERS ──
+document.getElementById('tool-move').addEventListener('click',e=>{e.stopPropagation();setTool('move');});
+document.getElementById('tool-pen').addEventListener('click', e=>{e.stopPropagation();setTool('pen');});
+
+// ── KEYBOARD SHORTCUTS ──
+document.addEventListener('keydown',e=>{
+  // don't fire shortcuts when typing in an input
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+
+  // pen tool special keys handled separately in pen state machine
+  if(currentTool==='pen'){
+    if(e.key==='Escape'||e.key==='v'||e.key==='V'){
+      if(penAnchors.length>=2){
+        penComplete=true; penBake(); penDraw(penMouseX,penMouseY);
+        setTimeout(penReset,800);
+        document.getElementById('status-msg').textContent='패스 완성 ✓ (열린 패스)';
+      }else{ penReset(); document.getElementById('status-msg').textContent='펜 툴 — 취소됨'; }
+    }
+    if(e.key==='Enter'){
+      if(penAnchors.length>=2){
+        penIsClosed=true; penComplete=true; penBake(); penDraw(penMouseX,penMouseY);
+        setTimeout(penReset,800);
+        document.getElementById('status-msg').textContent='패스가 닫혔습니다 ✓';
+      }
+    }
+    // V key while pen active = end path AND switch to move
+    if(e.key==='v'||e.key==='V') setTool('move');
+    return;
+  }
+
+  // global tool shortcuts
+  switch(e.key){
+    case 'v': case 'V': setTool('move'); break;
+    case 'b': case 'B': setTool('brush'); break;
+    case 'p': case 'P': setTool('pen'); break;
+    case 'u': case 'U': setTool('shape'); break;
+    case 'g': case 'G': setTool('bucket'); break;
+    case 't': case 'T': setTool('text'); break;
+    case 'Escape': penReset(); break;
+  }
+});
+
 
 function togglePopup(popupId, anchorId){
   const pop=document.getElementById(popupId);
@@ -849,8 +901,317 @@ brushSizeEl.addEventListener('input',()=>{
   document.getElementById('brush-size-val').textContent=brushSize+'px';
 });
 
-// Close popups on outside click
-document.addEventListener('click',closeAllPopups);
+// Close popups on outside click — but NOT when clicking toolbar buttons
+document.addEventListener('click',e=>{
+  if(e.target.closest('#toolbar')) return; // toolbar handles its own state
+  closeAllPopups();
+});
+
+// ══════════════════════════════════════════════
+// PEN TOOL STATE MACHINE
+// ══════════════════════════════════════════════
+// Anchor: {x, y, cp1x, cp1y, cp2x, cp2y}
+// cp1 = incoming handle (mirror of cp2 of prev), cp2 = outgoing handle
+
+let penAnchors=[];       // placed anchors
+let penIsClosed=false;
+let penMouseX=0, penMouseY=0;  // live mouse pos for preview
+let penDragging=false;         // currently dragging a handle after click
+let penDragAnchorIdx=-1;       // which anchor's cp2 is being dragged
+let penComplete=false;         // path is done (closed or ended)
+
+// completed committed paths (baked into brushCanvas)
+// each path: {anchors, isClosed, color}
+let penPaths=[];
+
+function penReset(){
+  penAnchors=[];
+  penIsClosed=false;
+  penDragging=false;
+  penDragAnchorIdx=-1;
+  penComplete=false;
+  penCtx.clearRect(0,0,W,H);
+}
+
+function penGetColor(){
+  const layer=layers.find(l=>l.id===selectedLayerId);
+  if(!layer||!layer.shapes.length) return '#4a90d9';
+  return layer.shapes[layer.shapes.length-1].fill;
+}
+
+// distance between two points
+function penDist(ax,ay,bx,by){ return Math.hypot(bx-ax,by-ay); }
+
+// check if mouse is near first anchor (to close path)
+function penNearFirst(mx,my){
+  if(penAnchors.length<2) return false;
+  const a=penAnchors[0];
+  return penDist(a.x,a.y,mx,my)<10;
+}
+
+// draw the entire pen overlay
+function penDraw(mx,my){
+  penCtx.clearRect(0,0,W,H);
+  if(penAnchors.length===0) return;
+
+  const color=penGetColor();
+
+  // ── draw committed segments ──
+  penCtx.save();
+  penCtx.strokeStyle=currentStyle==='mono'?'#888':color;
+  penCtx.lineWidth=1.5;
+  penCtx.lineJoin='round';
+  penCtx.lineCap='round';
+  penCtx.setLineDash([]);
+  penCtx.beginPath();
+  penAnchors.forEach((a,i)=>{
+    if(i===0){ penCtx.moveTo(a.x,a.y); return; }
+    const prev=penAnchors[i-1];
+    penCtx.bezierCurveTo(prev.cp2x,prev.cp2y, a.cp1x,a.cp1y, a.x,a.y);
+  });
+  if(penIsClosed){
+    const last=penAnchors[penAnchors.length-1];
+    const first=penAnchors[0];
+    penCtx.bezierCurveTo(last.cp2x,last.cp2y, first.cp1x,first.cp1y, first.x,first.y);
+    penCtx.closePath();
+  }
+  penCtx.stroke();
+  penCtx.restore();
+
+  // ── preview line from last anchor to mouse ──
+  if(!penIsClosed&&!penComplete&&penAnchors.length>0){
+    const last=penAnchors[penAnchors.length-1];
+    penCtx.save();
+    penCtx.strokeStyle='rgba(74,144,217,0.5)';
+    penCtx.lineWidth=1;
+    penCtx.setLineDash([4,4]);
+    penCtx.beginPath();
+    penCtx.moveTo(last.x,last.y);
+    // if we're dragging, the preview is a bezier to mouse
+    penCtx.bezierCurveTo(last.cp2x,last.cp2y, mx,my, mx,my);
+    penCtx.stroke();
+    penCtx.restore();
+  }
+
+  // ── anchor points & handles ──
+  penAnchors.forEach((a,i)=>{
+    const isFirst=i===0;
+    const isLast=i===penAnchors.length-1;
+
+    // anchor square
+    penCtx.save();
+    const nearFirst=penNearFirst(mx,my)&&isFirst&&!penComplete;
+    penCtx.fillStyle=nearFirst?'#4a90d9':'white';
+    penCtx.strokeStyle='#4a90d9';
+    penCtx.lineWidth=1;
+    penCtx.fillRect(a.x-4,a.y-4,8,8);
+    penCtx.strokeRect(a.x-4,a.y-4,8,8);
+    penCtx.restore();
+
+    // handles — only show for last anchor (while building) or all when complete
+    const showHandles=penComplete||(isLast&&!penComplete);
+    if(showHandles){
+      // outgoing handle (cp2)
+      if(a.cp2x!==a.x||a.cp2y!==a.y){
+        penCtx.save();
+        penCtx.strokeStyle='rgba(74,144,217,0.6)';
+        penCtx.lineWidth=1;
+        penCtx.setLineDash([2,2]);
+        penCtx.beginPath(); penCtx.moveTo(a.x,a.y); penCtx.lineTo(a.cp2x,a.cp2y); penCtx.stroke();
+        penCtx.setLineDash([]);
+        penCtx.fillStyle='#4a90d9';
+        penCtx.beginPath(); penCtx.arc(a.cp2x,a.cp2y,3,0,Math.PI*2); penCtx.fill();
+        penCtx.restore();
+      }
+      // incoming handle (cp1)
+      if(a.cp1x!==a.x||a.cp1y!==a.y){
+        penCtx.save();
+        penCtx.strokeStyle='rgba(74,144,217,0.6)';
+        penCtx.lineWidth=1;
+        penCtx.setLineDash([2,2]);
+        penCtx.beginPath(); penCtx.moveTo(a.x,a.y); penCtx.lineTo(a.cp1x,a.cp1y); penCtx.stroke();
+        penCtx.setLineDash([]);
+        penCtx.fillStyle='#e87b3e';
+        penCtx.beginPath(); penCtx.arc(a.cp1x,a.cp1y,3,0,Math.PI*2); penCtx.fill();
+        penCtx.restore();
+      }
+    }
+
+    // live drag handle preview (cp2 of last anchor while dragging)
+    if(!penComplete&&isLast&&penDragging&&i===penDragAnchorIdx){
+      penCtx.save();
+      penCtx.strokeStyle='rgba(74,144,217,0.8)';
+      penCtx.lineWidth=1;
+      penCtx.setLineDash([2,2]);
+      penCtx.beginPath(); penCtx.moveTo(a.x,a.y); penCtx.lineTo(mx,my); penCtx.stroke();
+      // mirror handle
+      const mx2=2*a.x-mx, my2=2*a.y-my;
+      penCtx.beginPath(); penCtx.moveTo(a.x,a.y); penCtx.lineTo(mx2,my2); penCtx.stroke();
+      penCtx.setLineDash([]);
+      penCtx.fillStyle='#4a90d9';
+      penCtx.beginPath(); penCtx.arc(mx,my,3,0,Math.PI*2); penCtx.fill();
+      penCtx.fillStyle='#e87b3e';
+      penCtx.beginPath(); penCtx.arc(mx2,my2,3,0,Math.PI*2); penCtx.fill();
+      penCtx.restore();
+    }
+  });
+}
+
+// bake completed pen path onto brushCanvas permanently + record for playback
+function penBake(){
+  if(penAnchors.length<2) return;
+  const color=penGetColor();
+
+  // ── draw path ──
+  brCtx.save();
+  brCtx.strokeStyle=currentStyle==='mono'?'#888':color;
+  brCtx.lineWidth=1.5; brCtx.lineJoin='round'; brCtx.lineCap='round';
+  brCtx.beginPath();
+  penAnchors.forEach((a,i)=>{
+    if(i===0){ brCtx.moveTo(a.x,a.y); return; }
+    const prev=penAnchors[i-1];
+    brCtx.bezierCurveTo(prev.cp2x,prev.cp2y, a.cp1x,a.cp1y, a.x,a.y);
+  });
+  if(penIsClosed){
+    const last=penAnchors[penAnchors.length-1];
+    const first=penAnchors[0];
+    brCtx.bezierCurveTo(last.cp2x,last.cp2y, first.cp1x,first.cp1y, first.x,first.y);
+    brCtx.closePath();
+  }
+  brCtx.stroke();
+  brCtx.restore();
+
+  // ── richer sound rules ──
+  // Y position → frequency (high = high pitch)
+  // handle length → filter brightness (long handle = bright/open, short = dark/muffled)
+  // handle angle → 2nd harmonic ratio (horizontal = pure, vertical = breathy)
+  // segment length between anchors → note duration
+  // wave type rotates: sine → triangle → sawtooth per anchor
+  const waves=['sine','triangle','sawtooth','sine'];
+  initAudio();
+
+  // record pen anchors into layer trail for playback
+  const layer=layers.find(l=>l.id===selectedLayerId);
+  const now=Date.now();
+
+  penAnchors.forEach((a,i)=>{
+    const yN=1-(a.y/H);
+    const freq=110*Math.pow(8,Math.max(0,Math.min(1,yN)));
+    const pan=(a.x/W)*2-1;
+
+    // handle length → filter cutoff (0=no handle=dark, 200px=very bright)
+    const handleLen=Math.hypot(a.cp2x-a.x, a.cp2y-a.y);
+    const filterFreq=200+handleLen*8; // 200Hz~1800Hz
+
+    // handle angle → vibrato amount
+    const handleAngle=Math.atan2(a.cp2y-a.y, a.cp2x-a.x);
+    const vibratoDepth=Math.abs(Math.sin(handleAngle))*8; // 0~8Hz
+
+    // segment length → note duration
+    let segLen=60;
+    if(i>0){
+      const prev=penAnchors[i-1];
+      segLen=Math.max(40, Math.min(600, Math.hypot(a.x-prev.x, a.y-prev.y)*2));
+    }
+    const vol=0.3+Math.min(handleLen/200, 0.3); // louder with longer handles
+
+    const delay=i*120; // 120ms between anchors
+
+    // play now (immediate feedback)
+    setTimeout(()=>{
+      if(!audioCtx) return;
+      const osc=audioCtx.createOscillator();
+      const gain=audioCtx.createGain();
+      const panN=audioCtx.createStereoPanner();
+      const filt=audioCtx.createBiquadFilter();
+      filt.type='lowpass'; filt.frequency.value=filterFreq; filt.Q.value=2;
+      osc.type=waves[i%4];
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      // vibrato via LFO
+      if(vibratoDepth>1){
+        const lfo=audioCtx.createOscillator();
+        const lfoGain=audioCtx.createGain();
+        lfo.frequency.value=5; lfoGain.gain.value=vibratoDepth;
+        lfo.connect(lfoGain); lfoGain.connect(osc.frequency); lfo.start();
+        lfo.stop(audioCtx.currentTime+segLen/1000+0.1);
+      }
+      gain.gain.setValueAtTime(vol*0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+segLen/1000);
+      panN.pan.value=Math.max(-1,Math.min(1,pan));
+      osc.connect(filt); filt.connect(gain); gain.connect(panN); panN.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime+segLen/1000);
+    }, delay);
+
+    // record for playback
+    if(layer){
+      layer.trails.push({
+        shapeId:-1, // pen anchor marker
+        x:a.x, y:a.y, w:8, h:8,
+        freq, pan, vol,
+        note:freqToNote(freq),
+        filterFreq, wave:waves[i%4], dur:segLen,
+        t: now + delay
+      });
+    }
+  });
+}
+
+// handle pen mousedown / touchstart
+function penOnStart(mx,my){
+  if(penComplete) return;
+
+  // close path?
+  if(penNearFirst(mx,my)){
+    penIsClosed=true;
+    penComplete=true;
+    penBake();
+    penDraw(mx,my);
+    setTimeout(penReset,800);
+    document.getElementById('status-msg').textContent='패스가 닫혔습니다 ✓';
+    return;
+  }
+
+  // place new anchor
+  const idx=penAnchors.length;
+  penAnchors.push({x:mx,y:my, cp1x:mx,cp1y:my, cp2x:mx,cp2y:my});
+  penDragging=true;
+  penDragAnchorIdx=idx;
+
+  // play note at this anchor
+  initAudio();
+  const yN=1-(my/H);
+  const freq=110*Math.pow(8,Math.max(0,Math.min(1,yN)));
+  const pan=(mx/W)*2-1;
+  playTone(freq,pan,0.4,'triangle',0.4);
+
+  // update props display
+  document.getElementById('opt-note').textContent=freqToNote(freq);
+  document.getElementById('opt-freq').textContent=Math.round(freq)+'Hz';
+  document.getElementById('opt-pan').textContent=(pan>=0?'+':'')+pan.toFixed(2);
+  updateViz(freq,0.4);
+}
+
+function penOnMove(mx,my){
+  penMouseX=mx; penMouseY=my;
+  if(penDragging&&penDragAnchorIdx>=0&&penDragAnchorIdx<penAnchors.length){
+    const a=penAnchors[penDragAnchorIdx];
+    // cp2 = mouse, cp1 = mirror
+    a.cp2x=mx; a.cp2y=my;
+    a.cp1x=2*a.x-mx; a.cp1y=2*a.y-my;
+  }
+  penDraw(mx,my);
+  // update cursor near first anchor
+  if(penNearFirst(mx,my)) mainCanvas.style.cursor='pointer';
+  else if(currentTool==='pen') mainCanvas.style.cursor='crosshair';
+}
+
+function penOnEnd(mx,my){
+  if(penDragging){
+    penDragging=false;
+    penDragAnchorIdx=-1;
+  }
+  penDraw(mx,my);
+}
 
 // ══════════════════════════════════════════════
 // POINTER EVENTS
@@ -910,12 +1271,18 @@ function onStart(e){
     currentStroke={mode:currentBrush, pts:[]};
     const layer=layers.find(l=>l.id===selectedLayerId);
     if(layer){ layer.strokes=layer.strokes||[]; layer.strokes.push(currentStroke); }
+  } else if(currentTool==='pen'){
+    penOnStart(mx,my);
+  } else if(currentTool==='text'){
+    textOnStart(mx,my);
   }
 }
 
 function onMove(e){
   if(e.cancelable) e.preventDefault();
   const{x:mx,y:my}=getPos(e);
+
+  if(currentTool==='pen'){ penOnMove(mx,my); return; }
 
   if(currentTool==='move'&&dragging&&selectedShapeId){
     const layer=layers.find(l=>l.id===selectedLayerId);
@@ -949,8 +1316,24 @@ function onMove(e){
       const pt={x:mx,y:my,color,size:brushSize,mode:currentBrush};
       currentStroke.pts.push(pt);
       renderBrushPoint(brCtx,pt);
-      // sound every ~8px
-      if(currentStroke.pts.length%3===0) playBrushSound(mx,my,speed);
+      if(currentStroke.pts.length%3===0){
+        playBrushSound(mx,my,speed);
+        // record to trails for playback
+        const layer=layers.find(l=>l.id===selectedLayerId);
+        if(layer){
+          const yN=1-(my/H);
+          const freq=110*Math.pow(8,Math.max(0,Math.min(1,yN)));
+          const pan=(mx/W)*2-1;
+          const vol=0.4+Math.min(speed/80,0.5);
+          layer.trails.push({
+            shapeId:-2, // brush marker
+            x:mx,y:my,w:brushSize,h:brushSize,
+            freq,pan,vol,note:freqToNote(freq),
+            wave:BRUSH_MODES[currentBrush].wave,
+            t:Date.now()
+          });
+        }
+      }
       lastBrushX=mx; lastBrushY=my;
       // update status freq display
       const yN=1-(my/H); const freq=110*Math.pow(8,Math.max(0,Math.min(1,yN)));
@@ -964,6 +1347,7 @@ function onMove(e){
 }
 
 function onEnd(e){
+  if(currentTool==='pen'){ const{x:mx,y:my}=getPos(e); penOnEnd(mx,my); return; }
   if(currentTool==='move'){
     if(dragging&&selectedShapeId){
       const layer=layers.find(l=>l.id===selectedLayerId);
@@ -996,7 +1380,7 @@ function onEnd(e){
 mainCanvas.addEventListener('mousedown',onStart);
 mainCanvas.addEventListener('mousemove',onMove);
 mainCanvas.addEventListener('mouseup',onEnd);
-mainCanvas.addEventListener('mouseleave',()=>{dragging=false;brushing=false;pCtx.clearRect(0,0,W,H);drawStart=null;});
+mainCanvas.addEventListener('mouseleave',()=>{dragging=false;brushing=false;pCtx.clearRect(0,0,W,H);drawStart=null;penDragging=false;});
 mainCanvas.addEventListener('touchstart',onStart,{passive:false});
 mainCanvas.addEventListener('touchmove',onMove,{passive:false});
 mainCanvas.addEventListener('touchend',onEnd,{passive:false});
@@ -1122,19 +1506,97 @@ document.getElementById('btn-play').addEventListener('click',()=>{
     layer.trails.forEach((pt,i)=>{
       playTimeouts.push(setTimeout(()=>{
         if(!isPlaying) return;
-        playTone(pt.freq,pt.pan,pt.vol,STYLES[currentStyle].wave,0.4);
+        if(pt.wave&&pt.filterFreq){
+          // ── pen anchor — filtered sine with vibrato ──
+          if(!audioCtx) return;
+          const osc=audioCtx.createOscillator();
+          const gain=audioCtx.createGain();
+          const panN=audioCtx.createStereoPanner();
+          const filt=audioCtx.createBiquadFilter();
+          filt.type='lowpass'; filt.frequency.value=pt.filterFreq; filt.Q.value=2;
+          osc.type=pt.wave;
+          osc.frequency.value=pt.freq;
+          const dur=(pt.dur||400)/1000;
+          gain.gain.setValueAtTime(pt.vol*0.3, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+dur);
+          panN.pan.value=Math.max(-1,Math.min(1,pt.pan));
+          osc.connect(filt); filt.connect(gain); gain.connect(panN); panN.connect(audioCtx.destination);
+          osc.start(); osc.stop(audioCtx.currentTime+dur);
+
+        } else if(pt.shapeId===-2){
+          // ── brush trail — mode-specific sounds ──
+          if(!audioCtx) return;
+          const wave=pt.wave||'sine';
+          if(wave==='square'){
+            // pixel block: square wave + random octave jump (arcade)
+            const jumpFreq=pt.freq*(1+Math.floor(Math.random()*3)*0.5);
+            playTone(jumpFreq,pt.pan,pt.vol*0.5,'square',0.12);
+          } else if(wave==='sawtooth'){
+            // glitch: sawtooth burst + random noise click
+            playTone(pt.freq,pt.pan,pt.vol*0.4,'sawtooth',0.08);
+            if(Math.random()<0.4){
+              const buf=audioCtx.createBuffer(1,441,audioCtx.sampleRate);
+              const d=buf.getChannelData(0);
+              for(let j=0;j<441;j++) d[j]=(Math.random()*2-1)*Math.exp(-j/40);
+              const src=audioCtx.createBufferSource();
+              const g2=audioCtx.createGain(); g2.gain.value=0.5;
+              src.buffer=buf; src.connect(g2); g2.connect(audioCtx.destination); src.start();
+            }
+          } else {
+            // normal brush: sine with lowpass
+            const osc=audioCtx.createOscillator();
+            const gain=audioCtx.createGain();
+            const panN=audioCtx.createStereoPanner();
+            const filt=audioCtx.createBiquadFilter();
+            filt.type='lowpass'; filt.frequency.value=600;
+            osc.type='sine'; osc.frequency.value=pt.freq;
+            gain.gain.setValueAtTime(pt.vol*0.22, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.3);
+            panN.pan.value=Math.max(-1,Math.min(1,pt.pan));
+            osc.connect(filt); filt.connect(gain); gain.connect(panN); panN.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime+0.3);
+          }
+        } else {
+          // ── regular shape trail ──
+          playTone(pt.freq,pt.pan,pt.vol,STYLES[currentStyle].wave,0.4);
+        }
       },cursor));
       if(i<layer.trails.length-1){const g=layer.trails[i+1].t-pt.t;cursor+=g<2000?g:0;}
     });
   });
   playTimeouts.push(setTimeout(stopPlayback,maxDur+800));
+
+  // ── TTS: schedule by X position (left=early, right=late) ──
+  if('speechSynthesis' in window){
+    window.speechSynthesis.cancel();
+    const allTexts=[];
+    layers.forEach(layer=>{
+      if(!layer.visible) return;
+      (layer.texts||[]).forEach(t=>allTexts.push(t));
+    });
+    allTexts.sort((a,b)=>a.x-b.x); // left to right = time order
+    // spread evenly across maxDur, starting at 200ms
+    const ttsInterval=allTexts.length>1
+      ? Math.min(maxDur/allTexts.length, 3000)
+      : 200;
+    allTexts.forEach((t,i)=>{
+      const delay=200+i*ttsInterval;
+      playTimeouts.push(setTimeout(()=>{
+        if(!('speechSynthesis' in window)) return;
+        const utt=new SpeechSynthesisUtterance(t.text);
+        utt.lang=t.lang||'ko-KR';
+        utt.rate=1.0; utt.pitch=1;
+        window.speechSynthesis.speak(utt);
+      }, delay));
+    });
+  }
 });
 
 // ══════════════════════════════════════════════
 // CLEAR & SAVE
 // ══════════════════════════════════════════════
 document.getElementById('btn-clear').addEventListener('click',()=>{
-  layers.forEach(l=>{l.trails=[];l.strokes=[];});
+  layers.forEach(l=>{l.trails=[];l.strokes=[];l.texts=[];});
   scoreLog=[];
   document.getElementById('score-log').innerHTML='<div style="color:var(--dim);font-size:10px;font-family:\'IBM Plex Mono\',monospace">도형을 드래그하거나<br>브러시로 그리세요</div>';
   stCtx.clearRect(0,0,W,H);brCtx.clearRect(0,0,W,H);sCtx.clearRect(0,0,W,H);hCtx.clearRect(0,0,W,H);
@@ -1153,11 +1615,124 @@ document.getElementById('btn-save').addEventListener('click',()=>{
 });
 
 // ══════════════════════════════════════════════
+// TEXT TOOL (TTS)
+// ══════════════════════════════════════════════
+// Each layer stores layer.texts = [{id, x, y, text, lang, createdAt}]
+let textIdCounter=0;
+let pendingTextPos=null; // {x,y} where user clicked
+
+document.getElementById('tool-text').addEventListener('click',e=>{
+  e.stopPropagation(); setTool('text');
+});
+
+// clicking canvas in text mode opens modal
+function textOnStart(mx,my){
+  if(!selectedLayerId){
+    document.getElementById('status-msg').textContent='먼저 레이어를 선택하세요';return;
+  }
+  pendingTextPos={x:mx,y:my};
+  const modal=document.getElementById('text-modal');
+  modal.style.display='flex';
+  document.getElementById('text-input').value='';
+  document.getElementById('text-input').focus();
+}
+
+function textConfirm(){
+  const val=document.getElementById('text-input').value.trim();
+  const lang=document.getElementById('text-lang').value;
+  if(!val||!pendingTextPos) return textCancel();
+  const layer=layers.find(l=>l.id===selectedLayerId);
+  if(!layer) return textCancel();
+  layer.texts=layer.texts||[];
+  textIdCounter++;
+  layer.texts.push({id:textIdCounter,x:pendingTextPos.x,y:pendingTextPos.y,text:val,lang,createdAt:Date.now()});
+  pendingTextPos=null;
+  document.getElementById('text-modal').style.display='none';
+  drawMain(); // show text label on canvas
+  document.getElementById('status-msg').textContent='텍스트 추가됨 — 재생 시 읽힙니다';
+}
+function textCancel(){
+  pendingTextPos=null;
+  document.getElementById('text-modal').style.display='none';
+}
+
+// draw text labels on main canvas — added to drawMain call
+function drawTextLabels(){
+  layers.forEach(layer=>{
+    if(!layer.visible) return;
+    (layer.texts||[]).forEach(t=>{
+      mCtx.save();
+      mCtx.font='bold 13px IBM Plex Sans';
+      mCtx.fillStyle='#4a90d9';
+      mCtx.strokeStyle='white';
+      mCtx.lineWidth=3;
+      mCtx.strokeText('"'+t.text+'"',t.x,t.y);
+      mCtx.fillText('"'+t.text+'"',t.x,t.y);
+      // cursor mark
+      mCtx.fillStyle='rgba(74,144,217,0.5)';
+      mCtx.fillRect(t.x-2,t.y-14,2,16);
+      mCtx.restore();
+    });
+  });
+}
+
+// setTool extended for text
+document.getElementById('tool-text').addEventListener('click',e=>{
+  e.stopPropagation(); setTool('text');
+});
+
+// ── TTS playback helper ──
+function speakText(text, lang){
+  return new Promise(resolve=>{
+    if(!('speechSynthesis' in window)){resolve();return;}
+    const utt=new SpeechSynthesisUtterance(text);
+    utt.lang=lang||'ko-KR';
+    utt.rate=0.9; utt.pitch=1;
+    utt.onend=resolve;
+    utt.onerror=resolve;
+    window.speechSynthesis.speak(utt);
+  });
+}
+
+// ══════════════════════════════════════════════
+// MOUSE WHEEL ZOOM
+// ══════════════════════════════════════════════
+let zoomLevel=1;
+const MIN_ZOOM=0.3, MAX_ZOOM=4;
+const canvasContainer=document.getElementById('canvas-container');
+
+// Use window-level wheel to avoid overflow:hidden blocking
+window.addEventListener('wheel',e=>{
+  // only zoom when hovering over canvas area
+  const wrapper=document.getElementById('canvas-wrapper');
+  const r=wrapper.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom) return;
+  e.preventDefault();
+  const delta=e.deltaY>0?-0.1:0.1;
+  zoomLevel=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,+(zoomLevel+delta).toFixed(1)));
+  canvasContainer.style.transform=`scale(${zoomLevel})`;
+  canvasContainer.style.transformOrigin='center center';
+  document.getElementById('status-msg').textContent=
+    `줌: ${Math.round(zoomLevel*100)}%`;
+},{passive:false});
+
+// zoom reset button
+document.getElementById('tool-zoom')&&
+  document.getElementById('tool-zoom').addEventListener('click',()=>{
+    zoomLevel=1;
+    canvasContainer.style.transform='scale(1)';
+    document.getElementById('status-msg').textContent='줌 초기화 (100%)';
+  });
+
+// ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
 const firstLayer=makeLayer();
 layers.push(firstLayer); selectedLayerId=firstLayer.id;
-renderLayers(); drawMain();
+penCtx.clearRect(0,0,W,H);
+pCtx.clearRect(0,0,W,H);
+renderLayers();
+requestAnimationFrame(()=>{ drawMain(); });
 // ══════════════════════════════════════════════
 // PRINT
 // ══════════════════════════════════════════════
@@ -1328,6 +1903,38 @@ function loadScoreFromUrl(){
 
 </script>
 
+<!-- TEXT INPUT MODAL -->
+<div id="text-modal" style="display:none;position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+  <div style="background:#2d2d2d;border:1px solid #4a4a4a;border-radius:4px;
+    padding:20px;width:320px;display:flex;flex-direction:column;gap:10px;">
+    <div style="font-size:10px;color:#888;font-family:'IBM Plex Mono',monospace">
+      텍스트 입력 — 재생 시 TTS로 읽힙니다
+    </div>
+    <input id="text-input" type="text" placeholder="텍스트를 입력하세요..."
+      style="background:#1b1b1b;border:1px solid #4a4a4a;color:#c8c8c8;
+      font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 10px;
+      border-radius:3px;outline:none;width:100%">
+    <div style="display:flex;gap:6px;align-items:center;">
+      <span style="font-size:10px;color:#888;font-family:'IBM Plex Mono',monospace">언어:</span>
+      <select id="text-lang" style="background:#1b1b1b;border:1px solid #4a4a4a;
+        color:#c8c8c8;font-size:10px;font-family:'IBM Plex Mono',monospace;
+        padding:3px 6px;border-radius:3px;cursor:pointer;">
+        <option value="ko-KR">한국어</option>
+        <option value="en-US">English</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button id="text-confirm" style="flex:1;background:#4a90d9;border:none;color:white;
+        font-family:'IBM Plex Mono',monospace;font-size:11px;padding:7px;
+        border-radius:3px;cursor:pointer;">확인 (Enter)</button>
+      <button id="text-cancel" style="flex:1;background:#3a3a3a;border:1px solid #555;
+        color:#aaa;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:7px;
+        border-radius:3px;cursor:pointer;">취소 (Esc)</button>
+    </div>
+  </div>
+</div>
+
 <!-- QR MODAL -->
 <div id="qr-modal">
   <div id="qr-box">
@@ -1361,7 +1968,6 @@ document.getElementById('btn-copy-url').addEventListener('click',()=>{
     document.getElementById('btn-copy-url').textContent='✓ 복사됨!';
     setTimeout(()=>document.getElementById('btn-copy-url').textContent='🔗 URL 복사',2000);
   }).catch(()=>{
-    // fallback
     const el=document.createElement('textarea');
     el.value=url; document.body.appendChild(el); el.select();
     document.execCommand('copy'); document.body.removeChild(el);
@@ -1369,7 +1975,17 @@ document.getElementById('btn-copy-url').addEventListener('click',()=>{
     setTimeout(()=>document.getElementById('btn-copy-url').textContent='🔗 URL 복사',2000);
   });
 });
-// run after QR lib loads + after main init
+
+// Text modal listeners — registered after text modal HTML exists
+document.getElementById('text-confirm').addEventListener('click',textConfirm);
+document.getElementById('text-cancel').addEventListener('click',textCancel);
+document.getElementById('text-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();textConfirm();}
+  if(e.key==='Escape'){textCancel();}
+  e.stopPropagation();
+});
+
+// run after page fully loaded
 window.addEventListener('load',()=>{
   loadScoreFromUrl();
 });
