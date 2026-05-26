@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fake Adobe™ — Gallery</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --bg:#1b1b1b; --panel:#2d2d2d; --border:#3a3a3a;
+    --accent:#4a90d9; --text:#c8c8c8; --dim:#666;
+  }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Sans',sans-serif;
+    min-height:100vh; overflow-x:hidden;
+  }
+
+  /* ── HEADER ── */
+  header{
+    background:#2c2c2c; border-bottom:1px solid #1a1a1a;
+    padding:0 24px; height:36px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:100;
+  }
+  .header-logo{
+    font-family:'IBM Plex Mono',monospace; font-size:13px;
+    color:var(--accent); font-weight:500; letter-spacing:.03em;
+  }
+  .header-right{display:flex;align-items:center;gap:16px;}
+  .header-count{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--dim);
+  }
+  .back-link{
+    font-family:'IBM Plex Mono',monospace; font-size:10px;
+    color:var(--dim); text-decoration:none; cursor:pointer;
+  }
+  .back-link:hover{color:var(--text);}
+
+  /* ── HERO ── */
+  .hero{
+    padding:48px 24px 24px;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .hero-title{
+    font-family:'IBM Plex Mono',monospace; font-size:11px;
+    color:var(--dim); letter-spacing:.1em; text-transform:uppercase;
+  }
+  .hero-sub{
+    font-size:12px; color:var(--dim); font-family:'IBM Plex Mono',monospace;
+    text-align:center; line-height:1.6;
+  }
+
+  /* ── GALLERY SCENE ── */
+  #gallery-scene{
+    display:flex; flex-wrap:wrap; gap:60px;
+    justify-content:center; align-items:flex-end;
+    padding:40px 40px 80px;
+    perspective:1200px;
+  }
+
+  /* ── STACK CARD ── */
+  .stack{
+    position:relative;
+    width:200px; height:200px;
+    cursor:pointer;
+    transition:transform .3s;
+  }
+  .stack:hover{ transform:translateY(-8px); }
+
+  /* shadow layers (decorative back cards) */
+  .stack-layer{
+    position:absolute; inset:0;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:2px;
+  }
+  .stack-layer:nth-child(1){ transform:translate(8px,8px) rotateY(-4deg); opacity:.35; }
+  .stack-layer:nth-child(2){ transform:translate(4px,4px) rotateY(-2deg); opacity:.55; }
+
+  /* main card face */
+  .stack-face{
+    position:absolute; inset:0;
+    border-radius:2px; overflow:hidden;
+    border:1px solid #444;
+    background:#111;
+    box-shadow:0 4px 20px rgba(0,0,0,.5);
+    display:flex; flex-direction:column;
+    transition:box-shadow .3s;
+  }
+  .stack:hover .stack-face{
+    box-shadow:0 12px 40px rgba(0,0,0,.7);
+    border-color:#666;
+  }
+  .stack-img{
+    flex:1; object-fit:cover; display:block; width:100%;
+    background:#1a1a1a;
+  }
+  .stack-info{
+    padding:8px; background:rgba(0,0,0,.75);
+    border-top:1px solid #333;
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .stack-title{
+    font-family:'IBM Plex Mono',monospace; font-size:10px;
+    color:var(--text); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .stack-meta{
+    font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--dim);
+  }
+
+  /* playing indicator */
+  .stack.playing .stack-face{ border-color:var(--accent); }
+  .play-indicator{
+    position:absolute; top:6px; right:6px;
+    width:8px; height:8px; border-radius:50%;
+    background:var(--accent); opacity:0;
+    transition:opacity .2s;
+    animation:pulse 1s infinite;
+  }
+  .stack.playing .play-indicator{ opacity:1; }
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.3);}}
+
+  /* ── EMPTY STATE ── */
+  #empty{
+    display:none; flex-direction:column; align-items:center;
+    gap:12px; padding:80px 24px; color:var(--dim);
+    font-family:'IBM Plex Mono',monospace; font-size:12px; text-align:center;
+  }
+  #empty .empty-icon{font-size:32px; opacity:.3;}
+
+  /* ── LOADING ── */
+  #loading{
+    display:flex; align-items:center; justify-content:center;
+    padding:80px; font-family:'IBM Plex Mono',monospace;
+    font-size:11px; color:var(--dim);
+  }
+
+  /* ── FOOTER ── */
+  footer{
+    text-align:center; padding:24px;
+    font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--dim);
+    border-top:1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="header-logo">Fa — Gallery</span>
+  <div class="header-right">
+    <span class="header-count" id="count-label">— scores</span>
+    <a class="back-link" href="./index.html">← Fake Adobe™</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-title">Sound Score Archive</div>
+  <div class="hero-sub">
+    아마추어들이 만든 사운드와 그래픽 악보의 아카이브<br>
+    카드에 마우스를 올리면 소리를 미리 들을 수 있습니다
+  </div>
+</div>
+
+<div id="loading">불러오는 중...</div>
+<div id="empty">
+  <span class="empty-icon">♩</span>
+  <span>아직 업로드된 악보가 없습니다</span>
+  <a href="./index.html" style="color:var(--accent);text-decoration:none;font-size:11px">
+    Fake Adobe™에서 만들어보세요 →
+  </a>
+</div>
+<div id="gallery-scene"></div>
+
+<footer>Fake Adobe™ — 오리지널리티의 신화를 해체하는 도구</footer>
+
+<script>
+// ══════════════════════════════════════════════
+// SUPABASE CONFIG — 아래 두 값을 본인 프로젝트 값으로 교체하세요
+// ══════════════════════════════════════════════
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
+// ── AUDIO for preview ──
+let audioCtx=null;
+let currentPlaying=null; // {timeouts, card}
+
+function initAudio(){ if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); }
+
+function playTone(freq,pan,vol,wave='sine',dur=0.4){
+  if(!audioCtx) return;
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  const panN=audioCtx.createStereoPanner();
+  osc.type=wave; osc.frequency.value=Math.max(20,freq);
+  gain.gain.setValueAtTime(vol*0.25,audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  panN.pan.value=Math.max(-1,Math.min(1,pan));
+  osc.connect(gain); gain.connect(panN); panN.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime+dur);
+}
+
+function parseCSV(csv){
+  if(!csv) return [];
+  return csv.split('|').map(row=>{
+    const parts=row.split('.').map(Number);
+    if(parts.length<4) return null;
+    const[f,p,v,d]=parts;
+    return f>0?{freq:f,pan:p/10,vol:Math.max(0.05,v/10),delta:d*10}:null;
+  }).filter(Boolean);
+}
+
+function stopCurrent(){
+  if(!currentPlaying) return;
+  currentPlaying.timeouts.forEach(clearTimeout);
+  currentPlaying.card.classList.remove('playing');
+  currentPlaying=null;
+}
+
+function previewScore(scoreData, cardEl){
+  initAudio();
+  stopCurrent();
+  const pts=parseCSV(scoreData);
+  if(!pts.length) return;
+  cardEl.classList.add('playing');
+  const timeouts=[];
+  let cursor=0;
+  pts.forEach((pt,i)=>{
+    timeouts.push(setTimeout(()=>{
+      playTone(pt.freq,pt.pan,pt.vol,'sine',0.35);
+    },cursor));
+    if(i<pts.length-1) cursor+=Math.min(pts[i+1].delta-pt.delta,800);
+  });
+  const endTid=setTimeout(()=>{
+    cardEl.classList.remove('playing');
+    if(currentPlaying&&currentPlaying.card===cardEl) currentPlaying=null;
+  }, cursor+600);
+  timeouts.push(endTid);
+  currentPlaying={timeouts,card:cardEl};
+}
+
+// ── RENDER CARDS ──
+function formatDate(iso){
+  const d=new Date(iso);
+  return d.toLocaleDateString('ko-KR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function buildCard(score){
+  const stack=document.createElement('div');
+  stack.className='stack';
+  stack.innerHTML=`
+    <div class="stack-layer"></div>
+    <div class="stack-layer"></div>
+    <div class="stack-face">
+      <img class="stack-img" src="${score.image_url||''}"
+        alt="${score.title}" loading="lazy"
+        onerror="this.style.background='#222'">
+      <div class="stack-info">
+        <div class="stack-title">${score.title||'Untitled'}</div>
+        <div class="stack-meta">${formatDate(score.created_at)}</div>
+      </div>
+    </div>
+    <div class="play-indicator"></div>
+  `;
+
+  // hover → preview sound
+  stack.addEventListener('mouseenter',()=>{
+    if(score.score_data) previewScore(score.score_data, stack);
+  });
+  stack.addEventListener('mouseleave', stopCurrent);
+
+  // click → open player
+  stack.addEventListener('click',()=>{
+    const origin=location.origin;
+    const pathDir=location.pathname.endsWith('/')
+      ? location.pathname
+      : location.pathname.substring(0,location.pathname.lastIndexOf('/')+1);
+    window.open(`${origin}${pathDir}player.html?id=${score.id}`,'_blank');
+  });
+
+  return stack;
+}
+
+// ── FETCH FROM SUPABASE ──
+async function loadGallery(){
+  const loadingEl=document.getElementById('loading');
+  const emptyEl=document.getElementById('empty');
+  const scene=document.getElementById('gallery-scene');
+
+  try{
+    const res=await fetch(
+      `${SUPABASE_URL}/rest/v1/scores?order=created_at.desc&limit=100`,
+      { headers:{
+          'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY
+        }}
+    );
+    if(!res.ok) throw new Error('불러오기 실패: '+res.status);
+    const scores=await res.json();
+
+    loadingEl.style.display='none';
+    document.getElementById('count-label').textContent=scores.length+' scores';
+
+    if(!scores.length){
+      emptyEl.style.display='flex'; return;
+    }
+
+    scores.forEach(score=>{
+      scene.appendChild(buildCard(score));
+    });
+
+  }catch(err){
+    loadingEl.textContent='⚠ 불러오기 실패: '+err.message;
+    loadingEl.style.color='#cc6666';
+  }
+}
+
+loadGallery();
+</script>
+</body>
+</html>

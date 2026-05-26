@@ -184,6 +184,11 @@
   <span class="menu-item">문자(Y)</span><span class="menu-item">선택(S)</span>
   <span class="menu-item">필터(T)</span><span class="menu-item">보기(V)</span>
   <span class="menu-item">창(W)</span><span class="menu-item">도움말(H)</span>
+  <span class="menu-item" id="btn-gallery"
+    style="margin-left:auto;color:#7ab8ff;border:1px solid #3a6aaa;
+    background:#1a2a3a;border-radius:2px;font-family:'IBM Plex Mono',monospace;
+    font-size:10px;letter-spacing:.03em;padding:0 12px;cursor:pointer;"
+    onclick="window.open('./gallery.html','_blank')">Gallery ↗</span>
 </div>
 
 <!-- OPTIONSBAR -->
@@ -207,6 +212,7 @@
   <div id="spacer"></div>
   <button class="bar-btn" id="btn-print" title="악보 인쇄" style="border-color:#555;color:#aaa">🖨 인쇄</button>
   <button class="bar-btn" id="btn-qr" title="소리 QR 공유" style="border-color:#3a6aaa;color:#7ab8ff;background:#1a2a3a">⬡ QR 공유</button>
+  <button class="bar-btn" id="btn-upload" title="갤러리에 업로드" style="border-color:#5a4aaa;color:#c8b8ff;background:#1e1a3a">↑ 갤러리</button>
   <button class="bar-btn success" id="btn-save">↓ 저장</button>
 </div>
 
@@ -1935,6 +1941,35 @@ function loadScoreFromUrl(){
   </div>
 </div>
 
+<!-- UPLOAD MODAL -->
+<div id="upload-modal" style="display:none;position:fixed;inset:0;z-index:600;
+  background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <div style="background:#2d2d2d;border:1px solid #4a4a4a;border-radius:4px;
+    padding:24px;width:340px;display:flex;flex-direction:column;gap:12px;">
+    <div style="font-size:11px;color:#4a90d9;font-family:'IBM Plex Mono',monospace;
+      border-bottom:1px solid #3a3a3a;padding-bottom:8px;">↑ 갤러리에 업로드</div>
+    <div style="font-size:10px;color:#888;font-family:'IBM Plex Mono',monospace">제목</div>
+    <input id="upload-title" type="text"
+      style="background:#1b1b1b;border:1px solid #4a4a4a;color:#c8c8c8;
+      font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 10px;
+      border-radius:3px;outline:none;width:100%">
+    <div id="upload-preview" style="width:100%;height:120px;background:#111;
+      border-radius:3px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+      <span style="color:#555;font-size:10px;font-family:'IBM Plex Mono',monospace">미리보기 생성 중...</span>
+    </div>
+    <div id="upload-status" style="font-size:10px;color:#888;font-family:'IBM Plex Mono',monospace;min-height:14px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="upload-confirm" style="flex:1;background:#5a4aaa;border:none;color:white;
+        font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px;
+        border-radius:3px;cursor:pointer;">업로드</button>
+      <button id="upload-cancel" style="flex:1;background:#3a3a3a;border:1px solid #555;
+        color:#aaa;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px;
+        border-radius:3px;cursor:pointer;">취소</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- QR MODAL -->
 <div id="qr-modal">
   <div id="qr-box">
@@ -1953,6 +1988,141 @@ function loadScoreFromUrl(){
 <!-- QR CODE LIBRARY -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
+// ══════════════════════════════════════════════
+// SUPABASE CONFIG — 아래 두 값을 본인 프로젝트 값으로 교체하세요
+// ══════════════════════════════════════════════
+const SUPABASE_URL = 'https://hbzwlrawarhmxkjhkixd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiendscmF3YXJobXhramhraXhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDY0NTUsImV4cCI6MjA5NTM4MjQ1NX0.6RNlIskTtWGN-99HBIPqHI7eR8mheVPg1Yuq9JyCNZ8';
+
+// ── canvas merge helper (shared by save / upload / QR) ──
+function mergeCanvases(){
+  const tmp=document.createElement('canvas'); tmp.width=W; tmp.height=H;
+  const tc=tmp.getContext('2d');
+  tc.fillStyle='white'; tc.fillRect(0,0,W,H);
+  tc.drawImage(mainCanvas,0,0); tc.drawImage(stampCanvas,0,0);
+  tc.drawImage(brushCanvas,0,0); tc.drawImage(scoreCanvas,0,0);
+  return tmp;
+}
+
+// ── collect score CSV (same as QR) ──
+function collectScoreCSV(){
+  const allPts=[];
+  layers.forEach(layer=>{
+    if(!layer.visible) return;
+    layer.trails.forEach(pt=>allPts.push(pt));
+  });
+  if(!allPts.length) return '';
+  allPts.sort((a,b)=>a.t-b.t);
+  const t0=allPts[0].t;
+  const MAX_PTS=60;
+  const step=Math.max(1,Math.floor(allPts.length/MAX_PTS));
+  const sampled=allPts.filter((_,i)=>i%step===0).slice(0,MAX_PTS);
+  return sampled.map(pt=>{
+    const f=Math.round(pt.freq||220);
+    const p=Math.round((pt.pan||0)*10);
+    const v=Math.round((pt.vol||0.5)*10);
+    const d=Math.min(Math.round((pt.t-t0)/10),9999);
+    return `${f}.${p}.${v}.${d}`;
+  }).join('|');
+}
+
+// ── UPLOAD MODAL ──
+let _uploadCanvas=null;
+
+document.getElementById('btn-upload').addEventListener('click',()=>{
+  // build preview
+  _uploadCanvas=mergeCanvases();
+  const prev=document.getElementById('upload-preview');
+  prev.innerHTML='';
+  const img=document.createElement('img');
+  img.src=_uploadCanvas.toDataURL('image/png');
+  img.style.cssText='width:100%;height:100%;object-fit:contain;';
+  prev.appendChild(img);
+  // auto title
+  document.getElementById('upload-title').value='Score #'+Date.now().toString().slice(-5);
+  document.getElementById('upload-status').textContent='';
+  document.getElementById('upload-modal').style.display='flex';
+});
+
+document.getElementById('upload-cancel').addEventListener('click',()=>{
+  document.getElementById('upload-modal').style.display='none';
+});
+
+document.getElementById('upload-confirm').addEventListener('click',async()=>{
+  const title=document.getElementById('upload-title').value.trim()||'Untitled Score';
+  const scoreData=collectScoreCSV();
+  const statusEl=document.getElementById('upload-status');
+  const confirmBtn=document.getElementById('upload-confirm');
+
+  if(!scoreData){
+    statusEl.textContent='⚠ 업로드할 사운드가 없습니다. 먼저 도형을 드래그하세요.';
+    statusEl.style.color='#cc6666'; return;
+  }
+
+  confirmBtn.disabled=true; confirmBtn.textContent='업로드 중...';
+  statusEl.textContent='이미지 업로드 중...'; statusEl.style.color='#888';
+
+  try{
+    // 1. upload PNG to Supabase Storage
+    const blob=await new Promise(res=>_uploadCanvas.toBlob(res,'image/png'));
+    const filename=`score_${Date.now()}.png`;
+    const storageRes=await fetch(
+      `${SUPABASE_URL}/storage/v1/object/score-images/${filename}`,
+      { method:'POST', headers:{
+          'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type':'image/png'
+        }, body:blob }
+    );
+    if(!storageRes.ok) throw new Error('이미지 업로드 실패: '+storageRes.status);
+    const imageUrl=`${SUPABASE_URL}/storage/v1/object/public/score-images/${filename}`;
+
+    // 2. insert row into scores table
+    statusEl.textContent='데이터 저장 중...';
+    const dbRes=await fetch(`${SUPABASE_URL}/rest/v1/scores`,{
+      method:'POST',
+      headers:{
+        'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'return=representation'
+      },
+      body: JSON.stringify({title, score_data:scoreData, image_url:imageUrl})
+    });
+    if(!dbRes.ok) throw new Error('DB 저장 실패: '+dbRes.status);
+    const [row]=await dbRes.json();
+
+    // 3. generate QR with short ID
+    statusEl.textContent='완료! QR 생성 중...';
+    const origin=location.origin;
+    const pathDir=location.pathname.endsWith('/')
+      ? location.pathname
+      : location.pathname.substring(0,location.pathname.lastIndexOf('/')+1);
+    const shareUrl=`${origin}${pathDir}player.html?id=${row.id}`;
+
+    // close upload modal, open QR modal with new URL
+    document.getElementById('upload-modal').style.display='none';
+    confirmBtn.disabled=false; confirmBtn.textContent='업로드';
+
+    // show QR
+    const qrWrap=document.getElementById('qr-wrap');
+    qrWrap.innerHTML='';
+    if(typeof QRCode!=='undefined'){
+      new QRCode(qrWrap,{text:shareUrl,width:200,height:200,
+        colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.L});
+    }
+    document.getElementById('qr-note').textContent=
+      `"${title}" 갤러리 업로드 완료\nQR을 스캔하면 이 악보의 소리가 재현됩니다`;
+    document.getElementById('qr-url').textContent=shareUrl;
+    document.getElementById('qr-url').dataset.fullurl=shareUrl;
+    document.getElementById('qr-modal').classList.add('open');
+    document.getElementById('status-msg').textContent='갤러리 업로드 완료 → '+shareUrl;
+
+  }catch(err){
+    statusEl.textContent='⚠ '+err.message; statusEl.style.color='#cc6666';
+    confirmBtn.disabled=false; confirmBtn.textContent='업로드';
+  }
+});
+
 // QR modal close — registered after modal HTML exists
 document.getElementById('qr-close').addEventListener('click',()=>{
   document.getElementById('qr-modal').classList.remove('open');

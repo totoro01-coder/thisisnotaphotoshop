@@ -155,14 +155,15 @@ function freqToNote(f){
   return NOTE_NAMES[((n%12)+12)%12]+(Math.floor(n/12)-1);
 }
 
+// ── SUPABASE CONFIG ──
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
 let scorePoints=[];
 let totalDur=0;
 
-function parseScore(){
-  const params=new URLSearchParams(location.search);
-  const csv=params.get('s');
+function parseCSV(csv){
   if(!csv) return false;
-
   try{
     const pts=csv.split('|').map(row=>{
       const parts=row.split('.').map(Number);
@@ -171,21 +172,52 @@ function parseScore(){
       if(!f||f<=0) return null;
       return{freq:f, pan:p/10, vol:Math.max(0.05,v/10), note:freqToNote(f), delta:d*10};
     }).filter(Boolean);
-
     if(!pts.length) return false;
     scorePoints=pts;
-
     let dur=0;
     for(let i=0;i<pts.length-1;i++){
       const gap=pts[i+1].delta-pts[i].delta;
       dur+=Math.min(gap,1500);
     }
-    dur+=600;
-    totalDur=Math.max(dur,500);
+    dur+=600; totalDur=Math.max(dur,500);
     return true;
-  }catch(e){
-    console.error(e); return false;
+  }catch(e){ console.error(e); return false; }
+}
+
+async function loadScore(){
+  const params=new URLSearchParams(location.search);
+  const id=params.get('id');
+  const csv=params.get('s');
+
+  if(id){
+    // fetch from Supabase by ID
+    try{
+      const res=await fetch(
+        `${SUPABASE_URL}/rest/v1/scores?id=eq.${id}&select=score_data,title,image_url`,
+        { headers:{
+            'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY
+          }}
+      );
+      if(!res.ok) throw new Error('불러오기 실패');
+      const [row]=await res.json();
+      if(!row) throw new Error('악보를 찾을 수 없습니다');
+      // show image if available
+      if(row.image_url){
+        const imgWrap=document.createElement('img');
+        imgWrap.src=row.image_url;
+        imgWrap.style.cssText='width:100%;border-radius:4px;margin-bottom:8px;opacity:.7;';
+        document.querySelector('.card').insertBefore(imgWrap, document.getElementById('viz'));
+      }
+      if(row.title) document.title='Fake Adobe™ — '+row.title;
+      return parseCSV(row.score_data);
+    }catch(e){
+      console.error(e); return false;
+    }
+  } else if(csv){
+    return parseCSV(csv);
   }
+  return false;
 }
 
 // ── VISUALIZER ──────────────────────────────────────
@@ -320,26 +352,27 @@ function renderChips(){
 }
 
 // ── INIT ─────────────────────────────────────────────
-const ok=parseScore();
-if(ok){
-  document.getElementById('main-card').style.display='flex';
-  const noteCount=scorePoints.length;
-  const durSec=Math.round(totalDur/100)/10;
-  document.getElementById('info-notes').textContent=noteCount+'개';
-  document.getElementById('info-dur').textContent=durSec+'초';
-  document.getElementById('status').textContent='▶ 버튼을 눌러 재생하세요';
-  document.getElementById('btn-play').disabled=false;
-  document.getElementById('btn-icon').textContent='▶';
-  document.getElementById('btn-label').textContent='재생';
-  renderChips();
-  // init viz after layout
-  requestAnimationFrame(()=>{
-    vizCanvas.width=vizCanvas.offsetWidth||320;
-    initViz();
-  });
-} else {
-  document.getElementById('error-card').style.display='block';
-}
+(async()=>{
+  const ok=await loadScore();
+  if(ok){
+    document.getElementById('main-card').style.display='flex';
+    const noteCount=scorePoints.length;
+    const durSec=Math.round(totalDur/100)/10;
+    document.getElementById('info-notes').textContent=noteCount+'개';
+    document.getElementById('info-dur').textContent=durSec+'초';
+    document.getElementById('status').textContent='▶ 버튼을 눌러 재생하세요';
+    document.getElementById('btn-play').disabled=false;
+    document.getElementById('btn-icon').textContent='▶';
+    document.getElementById('btn-label').textContent='재생';
+    renderChips();
+    requestAnimationFrame(()=>{
+      vizCanvas.width=vizCanvas.offsetWidth||320;
+      initViz();
+    });
+  } else {
+    document.getElementById('error-card').style.display='block';
+  }
+})();
 </script>
 </body>
 </html>
