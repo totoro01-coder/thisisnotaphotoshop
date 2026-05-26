@@ -254,7 +254,7 @@ function buildCard(score){
     <div class="stack-layer"></div>
     <div class="stack-layer"></div>
     <div class="stack-face">
-      <img class="stack-img" src="${score.image_url||''}"
+      <img class="stack-img" src="${score.image_data||''}"
         alt="${score.title}" loading="lazy"
         onerror="this.style.background='#222'">
       <div class="stack-info">
@@ -290,7 +290,7 @@ async function loadGallery(){
   const scene=document.getElementById('gallery-scene');
 
   try{
-    const res=await fetch(
+  const res=await fetch(
       `${SUPABASE_URL}/rest/v1/scores?order=created_at.desc&limit=100`,
       { headers:{
           'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,

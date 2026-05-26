@@ -193,7 +193,7 @@ async function loadScore(){
     // fetch from Supabase by ID
     try{
       const res=await fetch(
-        `${SUPABASE_URL}/rest/v1/scores?id=eq.${id}&select=score_data,title,image_url`,
+        `${SUPABASE_URL}/rest/v1/scores?id=eq.${id}&select=score_data,title,image_data`,
         { headers:{
             'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,
             'apikey': SUPABASE_ANON_KEY
@@ -203,9 +203,9 @@ async function loadScore(){
       const [row]=await res.json();
       if(!row) throw new Error('악보를 찾을 수 없습니다');
       // show image if available
-      if(row.image_url){
+      if(row.image_data){
         const imgWrap=document.createElement('img');
-        imgWrap.src=row.image_url;
+        imgWrap.src=row.image_data;
         imgWrap.style.cssText='width:100%;border-radius:4px;margin-bottom:8px;opacity:.7;';
         document.querySelector('.card').insertBefore(imgWrap, document.getElementById('viz'));
       }

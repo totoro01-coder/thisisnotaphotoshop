@@ -1969,7 +1969,6 @@ function loadScoreFromUrl(){
   </div>
 </div>
 
-
 <!-- QR MODAL -->
 <div id="qr-modal">
   <div id="qr-box">
@@ -1991,8 +1990,8 @@ function loadScoreFromUrl(){
 // ══════════════════════════════════════════════
 // SUPABASE CONFIG — 아래 두 값을 본인 프로젝트 값으로 교체하세요
 // ══════════════════════════════════════════════
-const SUPABASE_URL = 'https://hbzwlrawarhmxkjhkixd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiendscmF3YXJobXhramhraXhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDY0NTUsImV4cCI6MjA5NTM4MjQ1NX0.6RNlIskTtWGN-99HBIPqHI7eR8mheVPg1Yuq9JyCNZ8';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
 // ── canvas merge helper (shared by save / upload / QR) ──
 function mergeCanvases(){
@@ -2060,23 +2059,18 @@ document.getElementById('upload-confirm').addEventListener('click',async()=>{
   }
 
   confirmBtn.disabled=true; confirmBtn.textContent='업로드 중...';
-  statusEl.textContent='이미지 업로드 중...'; statusEl.style.color='#888';
+  statusEl.textContent='이미지 압축 중...'; statusEl.style.color='#888';
 
   try{
-    // 1. upload PNG to Supabase Storage
-    const blob=await new Promise(res=>_uploadCanvas.toBlob(res,'image/png'));
-    const filename=`score_${Date.now()}.png`;
-    const storageRes=await fetch(
-      `${SUPABASE_URL}/storage/v1/object/score-images/${filename}`,
-      { method:'POST', headers:{
-          'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type':'image/png'
-        }, body:blob }
-    );
-    if(!storageRes.ok) throw new Error('이미지 업로드 실패: '+storageRes.status);
-    const imageUrl=`${SUPABASE_URL}/storage/v1/object/public/score-images/${filename}`;
+    // 1. resize canvas to thumbnail (200x150) and encode as base64
+    const thumb=document.createElement('canvas');
+    thumb.width=200; thumb.height=150;
+    const tc=thumb.getContext('2d');
+    tc.fillStyle='white'; tc.fillRect(0,0,200,150);
+    tc.drawImage(_uploadCanvas, 0,0, W,H, 0,0, 200,150);
+    const imageData=thumb.toDataURL('image/jpeg',0.75); // JPEG 75% = ~15-30KB
 
-    // 2. insert row into scores table
+    // 2. insert row into scores table (no Storage needed)
     statusEl.textContent='데이터 저장 중...';
     const dbRes=await fetch(`${SUPABASE_URL}/rest/v1/scores`,{
       method:'POST',
@@ -2086,12 +2080,15 @@ document.getElementById('upload-confirm').addEventListener('click',async()=>{
         'Content-Type':'application/json',
         'Prefer':'return=representation'
       },
-      body: JSON.stringify({title, score_data:scoreData, image_url:imageUrl})
+      body: JSON.stringify({title, score_data:scoreData, image_data:imageData})
     });
-    if(!dbRes.ok) throw new Error('DB 저장 실패: '+dbRes.status);
+    if(!dbRes.ok){
+      const errText=await dbRes.text();
+      throw new Error('DB 저장 실패 ('+dbRes.status+'): '+errText);
+    }
     const [row]=await dbRes.json();
 
-    // 3. generate QR with short ID
+    // 3. generate short QR with ID
     statusEl.textContent='완료! QR 생성 중...';
     const origin=location.origin;
     const pathDir=location.pathname.endsWith('/')
@@ -2099,11 +2096,9 @@ document.getElementById('upload-confirm').addEventListener('click',async()=>{
       : location.pathname.substring(0,location.pathname.lastIndexOf('/')+1);
     const shareUrl=`${origin}${pathDir}player.html?id=${row.id}`;
 
-    // close upload modal, open QR modal with new URL
     document.getElementById('upload-modal').style.display='none';
     confirmBtn.disabled=false; confirmBtn.textContent='업로드';
 
-    // show QR
     const qrWrap=document.getElementById('qr-wrap');
     qrWrap.innerHTML='';
     if(typeof QRCode!=='undefined'){
