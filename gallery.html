@@ -7,130 +7,123 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
-  html,body{
-    width:100%;height:100%;overflow:hidden;
-    background:#f0f0f0;
-    font-family:'IBM Plex Sans',sans-serif;
-  }
+  html,body{width:100%;height:100%;overflow:hidden;background:#eeeeec;font-family:'IBM Plex Sans',sans-serif;}
 
-  /* ── HEADER ── */
+  /* HEADER */
   header{
-    position:fixed;top:0;left:0;right:0;z-index:200;
-    padding:0 24px;height:38px;
-    background:rgba(240,240,240,.92);
-    backdrop-filter:blur(8px);
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    height:38px;padding:0 24px;
+    background:rgba(238,238,236,.9);backdrop-filter:blur(8px);
     border-bottom:1px solid #ddd;
     display:flex;align-items:center;justify-content:space-between;
   }
-  .logo{
-    font-family:'IBM Plex Mono',monospace;font-size:13px;
-    color:#4a90d9;font-weight:500;text-decoration:none;
-  }
-  .header-right{display:flex;align-items:center;gap:16px;}
-  #count-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#999;}
-  .back-link{
-    font-family:'IBM Plex Mono',monospace;font-size:10px;
-    color:#999;text-decoration:none;
-  }
-  .back-link:hover{color:#333;}
+  .logo{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#4a90d9;font-weight:500;text-decoration:none;}
+  .hright{display:flex;align-items:center;gap:16px;}
+  #count-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#aaa;}
+  .back{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#aaa;text-decoration:none;}
+  .back:hover{color:#333;}
 
-  /* ── HINT ── */
-  #hint{
-    position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-    font-family:'IBM Plex Mono',monospace;font-size:10px;color:#aaa;
-    pointer-events:none;z-index:200;text-align:center;
-    transition:opacity .6s;
-    white-space:nowrap;
+  /* TITLE BELOW CARD */
+  #card-label{
+    position:fixed;top:50%;left:50%;
+    transform:translate(-50%, calc(-50% + 200px));
+    text-align:center;z-index:50;pointer-events:none;
+    transition:opacity .3s;
   }
+  #card-title{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#222;margin-bottom:3px;}
+  #card-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#aaa;}
 
-  /* ── COUNTER ── */
+  /* COUNTER */
   #counter{
-    position:fixed;bottom:28px;right:24px;
-    font-family:'IBM Plex Mono',monospace;font-size:11px;color:#aaa;
-    z-index:200;
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:#bbb;z-index:100;
   }
 
-  /* ── STAGE ── */
+  /* HINT */
+  #hint{
+    position:fixed;bottom:44px;left:50%;transform:translateX(-50%);
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:#ccc;
+    z-index:100;pointer-events:none;transition:opacity .6s;white-space:nowrap;
+  }
+
+  /* NAV ARROWS */
+  .nav-btn{
+    position:fixed;top:50%;z-index:100;
+    background:none;border:none;cursor:pointer;
+    color:#bbb;font-size:28px;padding:16px;
+    transform:translateY(-50%);
+    transition:color .2s;
+    user-select:none;
+  }
+  .nav-btn:hover{color:#555;}
+  #nav-prev{left:8px;}
+  #nav-next{right:8px;}
+
+  /* STAGE */
   #stage{
-    position:fixed;inset:0;
+    position:fixed;inset:0;top:38px;
     display:flex;align-items:center;justify-content:center;
-    padding-top:38px;
-    /* NO perspective here — we apply it per card stack */
-  }
-
-  /* ── DECK WRAPPER — holds all cards stacked ── */
-  #deck{
-    position:relative;
-    width:clamp(240px,38vw,340px);
-    /* height set by JS */
-    transform-style:preserve-3d;
-    perspective:1000px;
-  }
-
-  /* ── INDIVIDUAL CARD ── */
-  .deck-card{
-    position:absolute;
-    top:0;left:0;
-    width:100%;
-    border-radius:4px;
+    perspective:1200px;
     overflow:hidden;
-    box-shadow:0 6px 32px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.1);
-    will-change:transform,opacity;
+  }
+
+  /* CARDS */
+  .flow-card{
+    position:absolute;
+    width:260px;
+    border-radius:6px;
+    overflow:hidden;
     cursor:pointer;
-    transform-origin:center bottom;
+    will-change:transform,opacity;
+    box-shadow:0 8px 40px rgba(0,0,0,.22),0 2px 8px rgba(0,0,0,.1);
+    transform-origin:center center;
     background:#fff;
+    -webkit-backface-visibility:hidden;
+    backface-visibility:hidden;
   }
-  .deck-card img{
-    width:100%;
-    aspect-ratio:4/3;
-    object-fit:cover;
-    display:block;
-    background:#e8e8e8;
+  .flow-card img{
+    width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#e0e0e0;
   }
-  .card-info{
-    padding:10px 12px 12px;
-    background:#fff;
-    border-top:1px solid #f0f0f0;
-  }
-  .card-title{
-    font-family:'IBM Plex Mono',monospace;font-size:11px;color:#222;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    margin-bottom:2px;
-  }
-  .card-meta{font-family:'IBM Plex Mono',monospace;font-size:9px;color:#aaa;}
-
-  /* playing indicator */
-  .deck-card.playing{
-    box-shadow:0 6px 32px rgba(74,144,217,.3),0 0 0 2px #4a90d9;
+  .flow-card .cinfo{
+    padding:10px 12px 12px;background:#fff;border-top:1px solid #f0f0f0;
+    display:none; /* title shown in #card-label instead */
   }
 
-  /* ── LOADING / EMPTY ── */
+  /* LOADING / EMPTY */
   #loading,#empty{
-    position:fixed;inset:0;
-    display:flex;flex-direction:column;
+    position:fixed;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:12px;
-    font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaa;
-    text-align:center;
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaa;text-align:center;
   }
-  #empty a{color:#4a90d9;text-decoration:none;font-size:11px;}
+  #empty a{color:#4a90d9;text-decoration:none;}
 </style>
 </head>
 <body>
 
 <header>
   <a class="logo" href="./index.html">Fa</a>
-  <div class="header-right">
+  <div class="hright">
     <span id="count-label"></span>
-    <a class="back-link" href="./index.html">← Fake Adobe™</a>
+    <a class="back" href="./index.html">← Fake Adobe™</a>
   </div>
 </header>
 
-<div id="hint">↕ 스크롤 · 방향키 · 스와이프로 넘기기</div>
+<button class="nav-btn" id="nav-prev">‹</button>
+<button class="nav-btn" id="nav-next">›</button>
+
+<div id="stage"></div>
+
+<div id="card-label">
+  <div id="card-title"></div>
+  <div id="card-meta"></div>
+</div>
+
+<div id="hint">← 스크롤 · 방향키 · 스와이프 →</div>
 <div id="counter"></div>
-<div id="stage"><div id="deck"></div></div>
+
 <div id="loading">불러오는 중...</div>
 <div id="empty" style="display:none">
-  <span style="font-size:32px;opacity:.3">♩</span>
+  <span style="font-size:32px;opacity:.25">♩</span>
   <span>아직 업로드된 악보가 없습니다</span>
   <a href="./index.html">Fake Adobe™에서 만들어보세요 →</a>
 </div>
@@ -142,258 +135,229 @@
 const SUPABASE_URL = 'https://hbzwlrawarhmxkjhkixd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiendscmF3YXJobXhramhraXhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDY0NTUsImV4cCI6MjA5NTM4MjQ1NX0.6RNlIskTtWGN-99HBIPqHI7eR8mheVPg1Yuq9JyCNZ8';
 
-// ── AUDIO ──
-let audioCtx=null;
-let soundTimers=[];
-function initAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
-function stopSounds(){soundTimers.forEach(clearTimeout);soundTimers=[];}
-function playTone(freq,pan,vol,dur=0.35){
-  if(!audioCtx)return;
-  const osc=audioCtx.createOscillator(),g=audioCtx.createGain(),p=audioCtx.createStereoPanner();
-  osc.type='sine';osc.frequency.value=Math.max(20,freq);
-  g.gain.setValueAtTime(vol*.22,audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);
-  p.pan.value=Math.max(-1,Math.min(1,pan));
-  osc.connect(g);g.connect(p);p.connect(audioCtx.destination);
-  osc.start();osc.stop(audioCtx.currentTime+dur);
-}
-function previewScore(csv){
-  stopSounds();
-  const pts=(csv||'').split('|').map(r=>{
-    const[f,p,v,d]=r.split('.').map(Number);
-    return f>0?{freq:f,pan:p/10,vol:Math.max(.05,v/10),delta:d*10}:null;
-  }).filter(Boolean);
-  let cursor=0;
-  pts.forEach((pt,i)=>{
-    const t=setTimeout(()=>playTone(pt.freq,pt.pan,pt.vol,.3),cursor);
-    soundTimers.push(t);
-    if(i<pts.length-1)cursor+=Math.min(pts[i+1].delta-pt.delta,600);
-  });
-}
+// ── CARD LAYOUT ──────────────────────────────
+// How each offset position looks:
+// offset 0  = center (biggest)
+// offset ±1 = one step away (smaller, slightly rotated)
+// offset ±N = further (even smaller)
+const CARD_W = 260;
+const STEP   = CARD_W * 0.48; // ~50% overlap between cards
 
-// ── STATE ──
-let scores=[];
-let current=0;
-let busy=false;
+function getCardTransform(offset) {
+  const abs = Math.abs(offset);
+  const sign = offset < 0 ? -1 : 1;
 
-// ── CARD POSITION CALCULATOR ──
-// offset: 0=top(front), 1=second, 2=third... negative=gone
-function cardStyle(offset){
-  if(offset<0){
-    // already passed — fly off upward (hidden)
-    return {
-      transform:`translateY(-120%) rotate(-8deg) scale(.9)`,
-      opacity:0, zIndex:0, transition:'none', pointerEvents:'none'
-    };
-  }
-  // visible stack: each card slightly lower and smaller
-  const MAX_VISIBLE=5;
-  if(offset>MAX_VISIBLE) return {
-    transform:`translateY(${MAX_VISIBLE*14}px) scale(${1-MAX_VISIBLE*.04})`,
-    opacity:0, zIndex:0, pointerEvents:'none',
-    transition:'none'
-  };
-  const ty   = offset * 14;          // each card 14px lower
-  const sc   = 1 - offset * 0.04;    // each card 4% smaller
-  const op   = 1 - offset * 0.15;    // each card 15% more transparent
-  const z    = 100 - offset * 10;
+  if (abs > 5) return { display: 'none' };
+
+  // Progressive values by distance from center
+  const scales   = [1,    0.80, 0.65, 0.52, 0.41, 0.32];
+  const rotates  = [0,    22,   32,   38,   42,   45];   // rotateY degrees
+  const opacities= [1,    0.90, 0.78, 0.60, 0.40, 0.22];
+  const zIndexes = [100,  90,   80,   70,   60,   50];
+
+  const sc  = scales[abs]   ?? 0.25;
+  const ry  = rotates[abs]  ?? 45;
+  const op  = opacities[abs]?? 0.1;
+  const zi  = zIndexes[abs] ?? 40;
+
+  // X position: step per card, accumulating with perspective foreshortening
+  const xSteps = [0, 1, 1.78, 2.42, 2.95, 3.38];
+  const tx = sign * STEP * (xSteps[abs] ?? (abs * 0.6));
+
   return {
-    transform:`translateY(${ty}px) scale(${sc})`,
-    opacity: Math.max(0,op),
-    zIndex:  z,
-    pointerEvents: offset===0 ? 'auto':'none'
+    display: 'block',
+    transform: `translateX(${tx}px) rotateY(${-sign * ry}deg) scale(${sc})`,
+    opacity: op,
+    zIndex: zi,
+    pointerEvents: abs === 0 ? 'auto' : 'none',
+    cursor: abs === 0 ? 'pointer' : 'pointer',
+    boxShadow: abs === 0
+      ? '0 20px 60px rgba(0,0,0,.30), 0 4px 12px rgba(0,0,0,.15)'
+      : '0 8px 32px rgba(0,0,0,.18)',
   };
 }
 
-// apply positions to all card elements
-function applyPositions(animated=true){
-  const els=document.querySelectorAll('.deck-card');
-  els.forEach((el,i)=>{
-    const offset=i-current;
-    const s=cardStyle(offset);
-    el.style.transition=animated
-      ?'transform .5s cubic-bezier(.23,1,.32,1), opacity .4s ease'
-      :'none';
-    el.style.transform=s.transform;
-    el.style.opacity=s.opacity;
-    el.style.zIndex=s.zIndex;
-    el.style.pointerEvents=s.pointerEvents;
-  });
-}
+// ── STATE ────────────────────────────────────
+let scores = [];
+let current = 0;
+let busy = false;
 
-// update counter
-function updateCounter(){
-  document.getElementById('counter').textContent=
-    scores.length?(current+1)+' / '+scores.length:'';
-}
+// ── AUDIO ────────────────────────────────────
+let audioCtx = null;
+let soundTimers = [];
 
-// animate front card flying off, then go to next
-function goNext(){
-  if(busy||current>=scores.length-1)return;
-  busy=true;
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function stopSounds() {
+  soundTimers.forEach(clearTimeout);
+  soundTimers = [];
+}
+function playTone(freq, pan, vol, dur = 0.35) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const g   = audioCtx.createGain();
+  const p   = audioCtx.createStereoPanner();
+  osc.type = 'sine';
+  osc.frequency.value = Math.max(20, freq);
+  g.gain.setValueAtTime(vol * 0.22, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  p.pan.value = Math.max(-1, Math.min(1, pan));
+  osc.connect(g); g.connect(p); p.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + dur);
+}
+function previewScore(csv) {
   stopSounds();
-  document.querySelectorAll('.deck-card').forEach(c=>c.classList.remove('playing'));
-
-  // animate current card flying up and off
-  const els=document.querySelectorAll('.deck-card');
-  const frontEl=els[current];
-  if(frontEl){
-    frontEl.style.transition='transform .42s cubic-bezier(.4,0,.2,1), opacity .3s ease';
-    frontEl.style.transform=`translateY(-130%) rotate(-6deg) scale(.95)`;
-    frontEl.style.opacity='0';
-  }
-
-  setTimeout(()=>{
-    current++;
-    updateCounter();
-    applyPositions(true);
-    setTimeout(()=>{ busy=false; }, 520);
-  }, 120);
-
-  document.getElementById('hint').style.opacity='0';
-}
-
-function goPrev(){
-  if(busy||current<=0)return;
-  busy=true;
-  stopSounds();
-  document.querySelectorAll('.deck-card').forEach(c=>c.classList.remove('playing'));
-
-  current--;
-  // snap current card back (was hidden above)
-  const els=document.querySelectorAll('.deck-card');
-  const returning=els[current];
-  if(returning){
-    returning.style.transition='none';
-    returning.style.transform=`translateY(-130%) rotate(-6deg) scale(.95)`;
-    returning.style.opacity='0';
-  }
-  // force reflow then animate in
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      applyPositions(true);
-      updateCounter();
-      setTimeout(()=>{ busy=false; }, 520);
-    });
+  const pts = (csv || '').split('|').map(r => {
+    const [f, p, v, d] = r.split('.').map(Number);
+    return f > 0 ? { freq: f, pan: p / 10, vol: Math.max(0.05, v / 10), delta: d * 10 } : null;
+  }).filter(Boolean);
+  let cursor = 0;
+  pts.forEach((pt, i) => {
+    const t = setTimeout(() => playTone(pt.freq, pt.pan, pt.vol, 0.3), cursor);
+    soundTimers.push(t);
+    if (i < pts.length - 1) cursor += Math.min(pts[i + 1].delta - pt.delta, 600);
   });
-
-  document.getElementById('hint').style.opacity='0';
 }
 
-// ── BUILD DOM ──
-function formatDate(iso){
-  return new Date(iso).toLocaleDateString('ko-KR',{month:'short',day:'numeric'});
-}
-
-function buildDeck(){
-  const deck=document.getElementById('deck');
-  deck.innerHTML='';
-
-  // set deck height to match card (img aspect 4:3 + info ~60px)
-  const cardW=deck.offsetWidth||300;
-  const cardH=Math.round(cardW*(3/4))+60;
-  deck.style.height=cardH+'px';
-
-  scores.forEach((score,i)=>{
-    const card=document.createElement('div');
-    card.className='deck-card';
-    card.dataset.index=i;
-
-    const img=document.createElement('img');
-    img.src=score.image_data||'';
-    img.alt=score.title||'Score';
-    img.loading='lazy';
-    img.onerror=()=>{ img.style.background='#e0e0e0'; };
-
-    const info=document.createElement('div');
-    info.className='card-info';
-    info.innerHTML=`
-      <div class="card-title">${score.title||'Untitled'}</div>
-      <div class="card-meta">${formatDate(score.created_at)}</div>
-    `;
-
-    card.appendChild(img);
-    card.appendChild(info);
-
-    // click
-    card.addEventListener('click',()=>{
-      const offset=i-current;
-      if(offset===0){
-        // front card: preview + open
-        initAudio();
-        if(card.classList.contains('playing')){
-          stopSounds(); card.classList.remove('playing');
-        } else {
-          card.classList.add('playing');
-          previewScore(score.score_data||'');
-          setTimeout(()=>{
-            const base=location.origin+location.pathname.replace(/[^/]*$/,'');
-            window.open(`${base}player.html?id=${score.id}`,'_blank');
-          },200);
-        }
-      } else if(offset>0){
-        // tap back card = advance to it one step at a time
-        goNext();
-      }
-    });
-
-    deck.appendChild(card);
+// ── APPLY POSITIONS ──────────────────────────
+function applyPositions(animated = true) {
+  const cards = document.querySelectorAll('.flow-card');
+  cards.forEach((card, i) => {
+    const offset = i - current;
+    const s = getCardTransform(offset);
+    card.style.transition = animated
+      ? 'transform .5s cubic-bezier(.25,.46,.45,.94), opacity .4s ease, box-shadow .4s ease'
+      : 'none';
+    if (s.display === 'none') {
+      card.style.opacity = '0';
+      card.style.pointerEvents = 'none';
+      card.style.zIndex = '0';
+      return;
+    }
+    card.style.transform   = s.transform;
+    card.style.opacity     = s.opacity;
+    card.style.zIndex      = s.zIndex;
+    card.style.pointerEvents = s.pointerEvents;
+    card.style.boxShadow   = s.boxShadow;
+    card.style.cursor      = s.cursor;
   });
-
-  applyPositions(false);
+  updateLabel();
   updateCounter();
 }
 
-// ── INPUT ──
-let wheelAcc=0, wheelTimer=null;
-window.addEventListener('wheel',e=>{
-  e.preventDefault();
-  wheelAcc+=e.deltaY;
-  clearTimeout(wheelTimer);
-  wheelTimer=setTimeout(()=>{
-    if(Math.abs(wheelAcc)>50){ wheelAcc>0?goNext():goPrev(); }
-    wheelAcc=0;
-  },80);
-},{passive:false});
+function updateLabel() {
+  if (!scores.length) return;
+  const sc = scores[current];
+  document.getElementById('card-title').textContent = sc.title || 'Untitled';
+  document.getElementById('card-meta').textContent =
+    new Date(sc.created_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+}
 
-window.addEventListener('keydown',e=>{
-  if(['ArrowDown','ArrowRight',' '].includes(e.key)){ e.preventDefault(); goNext(); }
-  if(['ArrowUp','ArrowLeft'].includes(e.key)){ e.preventDefault(); goPrev(); }
-});
+function updateCounter() {
+  document.getElementById('counter').textContent =
+    scores.length ? (current + 1) + ' / ' + scores.length : '';
+}
 
-let ty0=0;
-window.addEventListener('touchstart',e=>{ ty0=e.touches[0].clientY; },{passive:true});
-window.addEventListener('touchend',e=>{
-  const dy=ty0-e.changedTouches[0].clientY;
-  if(Math.abs(dy)>45){ dy>0?goNext():goPrev(); }
-},{passive:true});
+// ── NAVIGATE ─────────────────────────────────
+function goTo(idx, animated = true) {
+  if (busy || idx < 0 || idx >= scores.length || idx === current) return;
+  busy = true;
+  stopSounds();
+  current = idx;
+  applyPositions(animated);
+  setTimeout(() => { busy = false; }, 520);
+  document.getElementById('hint').style.opacity = '0';
+}
+function goNext() { goTo(current + 1); }
+function goPrev() { goTo(current - 1); }
 
-// re-layout on resize
-window.addEventListener('resize',()=>{
-  if(!scores.length)return;
-  const deck=document.getElementById('deck');
-  const cardW=deck.offsetWidth||300;
-  deck.style.height=(Math.round(cardW*(3/4))+60)+'px';
+// ── BUILD CARDS ──────────────────────────────
+function buildCards() {
+  const stage = document.getElementById('stage');
+  stage.innerHTML = '';
+
+  scores.forEach((score, i) => {
+    const card = document.createElement('div');
+    card.className = 'flow-card';
+
+    const img = document.createElement('img');
+    img.src = score.image_data || '';
+    img.alt = score.title || 'Score';
+    img.loading = 'lazy';
+    img.onerror = () => { img.style.background = '#d8d8d8'; };
+
+    card.appendChild(img);
+    stage.appendChild(card);
+
+    card.addEventListener('click', () => {
+      const offset = i - current;
+      if (offset === 0) {
+        // center card: play preview then open player
+        initAudio();
+        previewScore(score.score_data || '');
+        setTimeout(() => {
+          const base = location.origin +
+            location.pathname.replace(/[^/]*$/, '');
+          window.open(`${base}player.html?id=${score.id}`, '_blank');
+        }, 250);
+      } else if (offset > 0) {
+        goNext();
+      } else {
+        goPrev();
+      }
+    });
+  });
+
   applyPositions(false);
+  setTimeout(() => applyPositions(true), 30); // animate in on load
+}
+
+// ── INPUT ────────────────────────────────────
+document.getElementById('nav-prev').addEventListener('click', goPrev);
+document.getElementById('nav-next').addEventListener('click', goNext);
+
+let wheelAcc = 0, wheelTimer = null;
+window.addEventListener('wheel', e => {
+  e.preventDefault();
+  wheelAcc += e.deltaY + e.deltaX;
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(() => {
+    if (Math.abs(wheelAcc) > 40) { wheelAcc > 0 ? goNext() : goPrev(); }
+    wheelAcc = 0;
+  }, 70);
+}, { passive: false });
+
+window.addEventListener('keydown', e => {
+  if (['ArrowRight', 'ArrowDown', ' '].includes(e.key)) { e.preventDefault(); goNext(); }
+  if (['ArrowLeft', 'ArrowUp'].includes(e.key))          { e.preventDefault(); goPrev(); }
 });
 
-// ── FETCH ──
-async function loadGallery(){
-  try{
-    const res=await fetch(
+let tx0 = 0;
+window.addEventListener('touchstart', e => { tx0 = e.touches[0].clientX; }, { passive: true });
+window.addEventListener('touchend', e => {
+  const dx = tx0 - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 40) { dx > 0 ? goNext() : goPrev(); }
+}, { passive: true });
+
+// ── FETCH ────────────────────────────────────
+async function loadGallery() {
+  try {
+    const res = await fetch(
       `${SUPABASE_URL}/rest/v1/scores?order=created_at.desc&limit=100`,
-      {headers:{Authorization:`Bearer ${SUPABASE_ANON_KEY}`,apikey:SUPABASE_ANON_KEY}}
+      { headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, apikey: SUPABASE_ANON_KEY } }
     );
-    if(!res.ok)throw new Error('불러오기 실패 '+res.status);
-    scores=await res.json();
-    document.getElementById('loading').style.display='none';
-    document.getElementById('count-label').textContent=scores.length+' scores';
-    if(!scores.length){ document.getElementById('empty').style.display='flex'; return; }
-    buildDeck();
-    setTimeout(()=>document.getElementById('hint').style.opacity='0', 3500);
-  }catch(err){
-    const l=document.getElementById('loading');
-    l.textContent='⚠ '+err.message; l.style.color='#c0392b';
+    if (!res.ok) throw new Error('불러오기 실패 ' + res.status);
+    scores = await res.json();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('count-label').textContent = scores.length + ' scores';
+    if (!scores.length) { document.getElementById('empty').style.display = 'flex'; return; }
+    buildCards();
+    setTimeout(() => document.getElementById('hint').style.opacity = '0', 3000);
+  } catch (err) {
+    const l = document.getElementById('loading');
+    l.textContent = '⚠ ' + err.message;
+    l.style.color = '#c0392b';
   }
 }
 loadGallery();
