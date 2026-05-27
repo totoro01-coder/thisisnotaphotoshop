@@ -202,7 +202,9 @@ async function loadScore(){
       );
       if(!res.ok) throw new Error('불러오기 실패');
       const [row]=await res.json();
-      if(!row) throw new Error('악보를 찾을 수 없습니다');
+      if(!row){
+      throw new Error('악보를 찾을 수 없습니다 (ID: '+id.slice(0,8)+'...)');
+    }
       // show image if available
       if(row.image_data){
         const imgWrap=document.createElement('img');
@@ -213,7 +215,11 @@ async function loadScore(){
       if(row.title) document.title='Fake Adobe™ — '+row.title;
       return parseCSV(row.score_data);
     }catch(e){
-      console.error(e); return false;
+      console.error(e);
+      document.getElementById('error-card').style.display='block';
+      document.getElementById('error-card').querySelector('p').textContent=
+        e.message+'\n\n player.html의 SUPABASE_URL과 ANON_KEY를 확인하세요.';
+      return false;
     }
   } else if(csv){
     return parseCSV(csv);
