@@ -8,8 +8,8 @@
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
   :root{
-    --bg:#1b1b1b; --panel:#2d2d2d; --border:#3a3a3a;
-    --accent:#4a90d9; --text:#c8c8c8; --dim:#777;
+    --bg:#ffffff; --panel:#f5f5f5; --border:#e0e0e0;
+    --accent:#4a90d9; --text:#1b1b1b; --dim:#888;
   }
   body{
     background:var(--bg); color:var(--text);
@@ -21,28 +21,30 @@
 
   /* HEADER */
   .logo{
+    position:fixed; top:16px; left:20px;
     font-family:'IBM Plex Mono',monospace;
-    font-size:13px; color:#4a90d9; letter-spacing:.05em;
-    margin-bottom:6px;
+    font-size:14px; color:#4a90d9; font-weight:500;
+    letter-spacing:.03em; text-decoration:none;
   }
   .subtitle{
     font-size:11px; color:var(--dim);
     font-family:'IBM Plex Mono',monospace;
-    margin-bottom:40px; text-align:center;
+    margin-bottom:32px; text-align:center;
   }
 
   /* MAIN CARD */
   .card{
-    background:var(--panel); border:1px solid var(--border);
-    border-radius:8px; padding:32px 28px;
+    background:#f9f9f9; border:1px solid var(--border);
+    border-radius:8px; padding:28px 24px;
     width:100%; max-width:360px;
-    display:flex; flex-direction:column; align-items:center; gap:24px;
+    display:flex; flex-direction:column; align-items:center; gap:20px;
+    box-shadow:0 2px 16px rgba(0,0,0,.08);
   }
 
   /* VISUALIZER */
   #viz{
     width:100%; height:80px;
-    background:#111; border-radius:4px;
+    background:#ececec; border-radius:4px;
     display:block;
   }
 
@@ -53,26 +55,25 @@
   }
   .note-chip{
     font-family:'IBM Plex Mono',monospace; font-size:10px;
-    color:var(--accent); background:#1a2a3a;
-    border:1px solid #2a4a6a; border-radius:3px;
+    color:var(--accent); background:#e8f0fb;
+    border:1px solid #b8d0f0; border-radius:3px;
     padding:2px 6px;
   }
 
   /* PLAY BUTTON */
   #btn-play{
-    width:100%; height:64px;
+    width:100%; height:60px;
     background:var(--accent); color:white;
     border:none; border-radius:6px;
-    font-size:22px; cursor:pointer;
+    font-size:20px; cursor:pointer;
     font-family:'IBM Plex Mono',monospace;
-    letter-spacing:.05em;
     transition:background .15s, transform .1s;
     display:flex; align-items:center; justify-content:center; gap:10px;
   }
   #btn-play:hover{background:#5aa0e9;}
   #btn-play:active{transform:scale(.97);}
   #btn-play.playing{background:#c0392b;}
-  #btn-play:disabled{background:#444; cursor:not-allowed; color:#888;}
+  #btn-play:disabled{background:#ccc; cursor:not-allowed; color:#fff;}
 
   /* INFO */
   .info-row{
@@ -82,7 +83,7 @@
   .info-val{color:var(--text);}
 
   /* PROGRESS BAR */
-  .progress-wrap{width:100%; background:#111; border-radius:3px; height:4px; overflow:hidden;}
+  .progress-wrap{width:100%; background:#e0e0e0; border-radius:3px; height:4px; overflow:hidden;}
   .progress-bar{height:4px; background:var(--accent); width:0%; border-radius:3px; transition:width .1s linear;}
 
   /* STATUS */
@@ -91,27 +92,27 @@
     color:var(--dim); text-align:center; min-height:16px;
   }
 
-  /* FOOTER LINK */
+  /* FOOTER */
   .footer{
-    margin-top:32px; font-size:10px; color:var(--dim);
+    margin-top:28px; font-size:10px; color:#bbb;
     font-family:'IBM Plex Mono',monospace; text-align:center;
     line-height:1.6;
   }
-  .footer a{color:#4a90d9; text-decoration:none;}
+  .footer a{color:var(--accent); text-decoration:none;}
 
-  /* ERROR STATE */
+  /* ERROR */
   .error-card{
-    background:#2a1a1a; border:1px solid #6a3030;
+    background:#fff5f5; border:1px solid #f0c0c0;
     border-radius:8px; padding:28px; text-align:center;
     width:100%; max-width:360px;
   }
-  .error-card h2{color:#cc6666; font-size:14px; margin-bottom:10px; font-family:'IBM Plex Mono',monospace;}
-  .error-card p{font-size:12px; color:var(--dim); line-height:1.6;}
+  .error-card h2{color:#cc4444; font-size:14px; margin-bottom:10px; font-family:'IBM Plex Mono',monospace;}
+  .error-card p{font-size:12px; color:#888; line-height:1.6;}
 </style>
 </head>
 <body>
 
-<div class="logo">Fa — Fake Adobe™</div>
+<a class="logo" href="./index.html">Fa</a>
 <div class="subtitle">Sound Score Player</div>
 
 <div id="main-card" class="card" style="display:none">
