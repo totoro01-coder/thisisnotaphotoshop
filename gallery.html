@@ -7,91 +7,112 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
-  :root{
-    --bg:#1b1b1b; --accent:#4a90d9; --text:#c8c8c8; --dim:#555;
-  }
   html,body{
     width:100%;height:100%;overflow:hidden;
-    background:var(--bg);
+    background:#f0f0f0;
     font-family:'IBM Plex Sans',sans-serif;
-    color:var(--text);
   }
 
   /* ── HEADER ── */
   header{
-    position:fixed;top:0;left:0;right:0;z-index:100;
-    padding:0 24px;height:36px;
-    background:rgba(27,27,27,.9);
+    position:fixed;top:0;left:0;right:0;z-index:200;
+    padding:0 24px;height:38px;
+    background:rgba(240,240,240,.92);
     backdrop-filter:blur(8px);
-    border-bottom:1px solid #2a2a2a;
+    border-bottom:1px solid #ddd;
     display:flex;align-items:center;justify-content:space-between;
   }
   .logo{
     font-family:'IBM Plex Mono',monospace;font-size:13px;
-    color:var(--accent);font-weight:500;text-decoration:none;
+    color:#4a90d9;font-weight:500;text-decoration:none;
   }
   .header-right{display:flex;align-items:center;gap:16px;}
-  #count-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);}
-  .back-link{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-decoration:none;}
-  .back-link:hover{color:var(--text);}
+  #count-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#999;}
+  .back-link{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;
+    color:#999;text-decoration:none;
+  }
+  .back-link:hover{color:#333;}
 
   /* ── HINT ── */
   #hint{
-    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);
-    pointer-events:none;z-index:100;
-    transition:opacity .4s;
-    text-align:center;line-height:1.6;
+    position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:#aaa;
+    pointer-events:none;z-index:200;text-align:center;
+    transition:opacity .6s;
+    white-space:nowrap;
   }
 
-  /* ── DECK STAGE ── */
+  /* ── COUNTER ── */
+  #counter{
+    position:fixed;bottom:28px;right:24px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:#aaa;
+    z-index:200;
+  }
+
+  /* ── STAGE ── */
   #stage{
     position:fixed;inset:0;
     display:flex;align-items:center;justify-content:center;
-    perspective:1400px;
-    padding-top:36px;
+    padding-top:38px;
+    /* NO perspective here — we apply it per card stack */
   }
 
-  /* ── CARD ── */
+  /* ── DECK WRAPPER — holds all cards stacked ── */
+  #deck{
+    position:relative;
+    width:clamp(240px,38vw,340px);
+    /* height set by JS */
+    transform-style:preserve-3d;
+    perspective:1000px;
+  }
+
+  /* ── INDIVIDUAL CARD ── */
   .deck-card{
     position:absolute;
-    width:clamp(220px,40vw,320px);
-    aspect-ratio:1/1.1;
+    top:0;left:0;
+    width:100%;
     border-radius:4px;
     overflow:hidden;
-    cursor:pointer;
+    box-shadow:0 6px 32px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.1);
     will-change:transform,opacity;
-    transition:transform .55s cubic-bezier(.25,.46,.45,.94),
-               opacity .55s ease,
-               box-shadow .3s;
-    transform-style:preserve-3d;
-    user-select:none;
+    cursor:pointer;
+    transform-origin:center bottom;
+    background:#fff;
   }
   .deck-card img{
-    width:100%;height:80%;object-fit:cover;display:block;
-    background:#222;
+    width:100%;
+    aspect-ratio:4/3;
+    object-fit:cover;
+    display:block;
+    background:#e8e8e8;
   }
   .card-info{
-    background:#111;padding:10px 12px;
-    height:20%;display:flex;flex-direction:column;justify-content:center;gap:2px;
+    padding:10px 12px 12px;
+    background:#fff;
+    border-top:1px solid #f0f0f0;
   }
   .card-title{
-    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:#222;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-bottom:2px;
   }
-  .card-meta{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--dim);}
+  .card-meta{font-family:'IBM Plex Mono',monospace;font-size:9px;color:#aaa;}
 
-  /* playing pulse border */
-  .deck-card.playing{box-shadow:0 0 0 2px var(--accent),0 8px 32px rgba(74,144,217,.3);}
+  /* playing indicator */
+  .deck-card.playing{
+    box-shadow:0 6px 32px rgba(74,144,217,.3),0 0 0 2px #4a90d9;
+  }
 
   /* ── LOADING / EMPTY ── */
   #loading,#empty{
-    position:fixed;inset:0;display:flex;flex-direction:column;
+    position:fixed;inset:0;
+    display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:12px;
-    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaa;
     text-align:center;
   }
-  #empty a{color:var(--accent);text-decoration:none;font-size:11px;}
+  #empty a{color:#4a90d9;text-decoration:none;font-size:11px;}
 </style>
 </head>
 <body>
@@ -104,11 +125,12 @@
   </div>
 </header>
 
-<div id="hint">↕ 스크롤 또는 방향키로 넘기기 · 클릭으로 재생</div>
-<div id="stage"></div>
+<div id="hint">↕ 스크롤 · 방향키 · 스와이프로 넘기기</div>
+<div id="counter"></div>
+<div id="stage"><div id="deck"></div></div>
 <div id="loading">불러오는 중...</div>
 <div id="empty" style="display:none">
-  <span style="font-size:28px;opacity:.3">♩</span>
+  <span style="font-size:32px;opacity:.3">♩</span>
   <span>아직 업로드된 악보가 없습니다</span>
   <a href="./index.html">Fake Adobe™에서 만들어보세요 →</a>
 </div>
@@ -122,97 +144,156 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // ── AUDIO ──
 let audioCtx=null;
-let currentSounds=[];
+let soundTimers=[];
 function initAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
-function stopSounds(){currentSounds.forEach(clearTimeout);currentSounds=[];}
+function stopSounds(){soundTimers.forEach(clearTimeout);soundTimers=[];}
 function playTone(freq,pan,vol,dur=0.35){
   if(!audioCtx)return;
-  const osc=audioCtx.createOscillator(),gain=audioCtx.createGain(),panN=audioCtx.createStereoPanner();
+  const osc=audioCtx.createOscillator(),g=audioCtx.createGain(),p=audioCtx.createStereoPanner();
   osc.type='sine';osc.frequency.value=Math.max(20,freq);
-  gain.gain.setValueAtTime(vol*0.22,audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
-  panN.pan.value=Math.max(-1,Math.min(1,pan));
-  osc.connect(gain);gain.connect(panN);panN.connect(audioCtx.destination);
+  g.gain.setValueAtTime(vol*.22,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);
+  p.pan.value=Math.max(-1,Math.min(1,pan));
+  osc.connect(g);g.connect(p);p.connect(audioCtx.destination);
   osc.start();osc.stop(audioCtx.currentTime+dur);
 }
-function previewScore(csv,card){
-  initAudio();stopSounds();
-  const pts=csv.split('|').map(r=>{
+function previewScore(csv){
+  stopSounds();
+  const pts=(csv||'').split('|').map(r=>{
     const[f,p,v,d]=r.split('.').map(Number);
     return f>0?{freq:f,pan:p/10,vol:Math.max(.05,v/10),delta:d*10}:null;
   }).filter(Boolean);
-  if(!pts.length)return;
   let cursor=0;
   pts.forEach((pt,i)=>{
-    const tid=setTimeout(()=>{playTone(pt.freq,pt.pan,pt.vol,0.3);},cursor);
-    currentSounds.push(tid);
-    if(i<pts.length-1)cursor+=Math.min(pts[i+1].delta-pt.delta,700);
+    const t=setTimeout(()=>playTone(pt.freq,pt.pan,pt.vol,.3),cursor);
+    soundTimers.push(t);
+    if(i<pts.length-1)cursor+=Math.min(pts[i+1].delta-pt.delta,600);
   });
 }
 
-// ── DECK STATE ──
+// ── STATE ──
 let scores=[];
-let current=0; // index of front card
-let isAnimating=false;
+let current=0;
+let busy=false;
 
-// ── LAYOUT POSITIONS ──
-// Each card gets a position based on distance from current
-function getTransform(offset){
-  // offset: 0=front, 1=behind-1, 2=behind-2, negative=gone behind
-  const abs=Math.abs(offset);
-  if(abs>5) return {transform:'translateZ(-800px) scale(.3)',opacity:0,zIndex:0};
-  const tz = -abs*90;            // depth
-  const ty =  abs*18;            // slight downward shift when behind
-  const ry =  offset*0;          // no Y-rotation (cleaner look)
-  const scale = Math.pow(.88,abs);
-  const opacity = offset<0 ? 0 : Math.max(0, 1-abs*0.18);
-  const z = 100-abs*10;
-  return{
-    transform:`translateZ(${tz}px) translateY(${ty}px) scale(${scale})`,
-    opacity,
-    zIndex:z
+// ── CARD POSITION CALCULATOR ──
+// offset: 0=top(front), 1=second, 2=third... negative=gone
+function cardStyle(offset){
+  if(offset<0){
+    // already passed — fly off upward (hidden)
+    return {
+      transform:`translateY(-120%) rotate(-8deg) scale(.9)`,
+      opacity:0, zIndex:0, transition:'none', pointerEvents:'none'
+    };
+  }
+  // visible stack: each card slightly lower and smaller
+  const MAX_VISIBLE=5;
+  if(offset>MAX_VISIBLE) return {
+    transform:`translateY(${MAX_VISIBLE*14}px) scale(${1-MAX_VISIBLE*.04})`,
+    opacity:0, zIndex:0, pointerEvents:'none',
+    transition:'none'
+  };
+  const ty   = offset * 14;          // each card 14px lower
+  const sc   = 1 - offset * 0.04;    // each card 4% smaller
+  const op   = 1 - offset * 0.15;    // each card 15% more transparent
+  const z    = 100 - offset * 10;
+  return {
+    transform:`translateY(${ty}px) scale(${sc})`,
+    opacity: Math.max(0,op),
+    zIndex:  z,
+    pointerEvents: offset===0 ? 'auto':'none'
   };
 }
 
+// apply positions to all card elements
 function applyPositions(animated=true){
-  const cards=document.querySelectorAll('.deck-card');
-  cards.forEach((card,i)=>{
-    const offset=i-current; // negative=already passed, positive=ahead
-    const pos=getTransform(offset);
-    card.style.transition=animated
-      ?'transform .55s cubic-bezier(.25,.46,.45,.94),opacity .45s ease,z-index 0s'
+  const els=document.querySelectorAll('.deck-card');
+  els.forEach((el,i)=>{
+    const offset=i-current;
+    const s=cardStyle(offset);
+    el.style.transition=animated
+      ?'transform .5s cubic-bezier(.23,1,.32,1), opacity .4s ease'
       :'none';
-    card.style.transform=pos.transform;
-    card.style.opacity=pos.opacity;
-    card.style.zIndex=pos.zIndex;
-    card.style.pointerEvents=offset===0?'auto':'none';
+    el.style.transform=s.transform;
+    el.style.opacity=s.opacity;
+    el.style.zIndex=s.zIndex;
+    el.style.pointerEvents=s.pointerEvents;
   });
 }
 
-function goTo(idx){
-  if(isAnimating||idx<0||idx>=scores.length)return;
-  isAnimating=true;
+// update counter
+function updateCounter(){
+  document.getElementById('counter').textContent=
+    scores.length?(current+1)+' / '+scores.length:'';
+}
+
+// animate front card flying off, then go to next
+function goNext(){
+  if(busy||current>=scores.length-1)return;
+  busy=true;
   stopSounds();
   document.querySelectorAll('.deck-card').forEach(c=>c.classList.remove('playing'));
-  current=idx;
-  applyPositions(true);
-  setTimeout(()=>{isAnimating=false;},600);
-  // hide hint after first interaction
+
+  // animate current card flying up and off
+  const els=document.querySelectorAll('.deck-card');
+  const frontEl=els[current];
+  if(frontEl){
+    frontEl.style.transition='transform .42s cubic-bezier(.4,0,.2,1), opacity .3s ease';
+    frontEl.style.transform=`translateY(-130%) rotate(-6deg) scale(.95)`;
+    frontEl.style.opacity='0';
+  }
+
+  setTimeout(()=>{
+    current++;
+    updateCounter();
+    applyPositions(true);
+    setTimeout(()=>{ busy=false; }, 520);
+  }, 120);
+
   document.getElementById('hint').style.opacity='0';
 }
 
-function next(){goTo(current+1);}
-function prev(){goTo(current-1);}
+function goPrev(){
+  if(busy||current<=0)return;
+  busy=true;
+  stopSounds();
+  document.querySelectorAll('.deck-card').forEach(c=>c.classList.remove('playing'));
 
-// ── BUILD CARDS ──
-function formatDate(iso){
-  const d=new Date(iso);
-  return d.toLocaleDateString('ko-KR',{month:'short',day:'numeric'});
+  current--;
+  // snap current card back (was hidden above)
+  const els=document.querySelectorAll('.deck-card');
+  const returning=els[current];
+  if(returning){
+    returning.style.transition='none';
+    returning.style.transform=`translateY(-130%) rotate(-6deg) scale(.95)`;
+    returning.style.opacity='0';
+  }
+  // force reflow then animate in
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      applyPositions(true);
+      updateCounter();
+      setTimeout(()=>{ busy=false; }, 520);
+    });
+  });
+
+  document.getElementById('hint').style.opacity='0';
 }
 
-function buildCards(){
-  const stage=document.getElementById('stage');
-  stage.innerHTML='';
+// ── BUILD DOM ──
+function formatDate(iso){
+  return new Date(iso).toLocaleDateString('ko-KR',{month:'short',day:'numeric'});
+}
+
+function buildDeck(){
+  const deck=document.getElementById('deck');
+  deck.innerHTML='';
+
+  // set deck height to match card (img aspect 4:3 + info ~60px)
+  const cardW=deck.offsetWidth||300;
+  const cardH=Math.round(cardW*(3/4))+60;
+  deck.style.height=cardH+'px';
+
   scores.forEach((score,i)=>{
     const card=document.createElement('div');
     card.className='deck-card';
@@ -222,7 +303,7 @@ function buildCards(){
     img.src=score.image_data||'';
     img.alt=score.title||'Score';
     img.loading='lazy';
-    img.onerror=()=>{img.style.background='#1a1a1a';};
+    img.onerror=()=>{ img.style.background='#e0e0e0'; };
 
     const info=document.createElement('div');
     info.className='card-info';
@@ -230,86 +311,89 @@ function buildCards(){
       <div class="card-title">${score.title||'Untitled'}</div>
       <div class="card-meta">${formatDate(score.created_at)}</div>
     `;
+
     card.appendChild(img);
     card.appendChild(info);
 
-    // click front card = preview / open player
+    // click
     card.addEventListener('click',()=>{
       const offset=i-current;
       if(offset===0){
-        // play preview
+        // front card: preview + open
         initAudio();
         if(card.classList.contains('playing')){
-          stopSounds();card.classList.remove('playing');
-        }else{
+          stopSounds(); card.classList.remove('playing');
+        } else {
           card.classList.add('playing');
-          previewScore(score.score_data||'',card);
-          // open player after brief delay
+          previewScore(score.score_data||'');
           setTimeout(()=>{
-            const origin=location.origin;
-            const pathDir=location.pathname.endsWith('/')
-              ?location.pathname
-              :location.pathname.substring(0,location.pathname.lastIndexOf('/')+1);
-            window.open(`${origin}${pathDir}player.html?id=${score.id}`,'_blank');
-          },300);
+            const base=location.origin+location.pathname.replace(/[^/]*$/,'');
+            window.open(`${base}player.html?id=${score.id}`,'_blank');
+          },200);
         }
       } else if(offset>0){
-        goTo(i); // tap a back card to bring it forward
+        // tap back card = advance to it one step at a time
+        goNext();
       }
     });
 
-    stage.appendChild(card);
+    deck.appendChild(card);
   });
+
   applyPositions(false);
+  updateCounter();
 }
 
 // ── INPUT ──
-// Wheel
-let wheelAcc=0,wheelTimer=null;
+let wheelAcc=0, wheelTimer=null;
 window.addEventListener('wheel',e=>{
   e.preventDefault();
   wheelAcc+=e.deltaY;
   clearTimeout(wheelTimer);
   wheelTimer=setTimeout(()=>{
-    if(Math.abs(wheelAcc)>40){
-      wheelAcc>0?next():prev();
-    }
+    if(Math.abs(wheelAcc)>50){ wheelAcc>0?goNext():goPrev(); }
     wheelAcc=0;
   },80);
 },{passive:false});
 
-// Keyboard
 window.addEventListener('keydown',e=>{
-  if(e.key==='ArrowDown'||e.key==='ArrowRight') next();
-  if(e.key==='ArrowUp'||e.key==='ArrowLeft')   prev();
+  if(['ArrowDown','ArrowRight',' '].includes(e.key)){ e.preventDefault(); goNext(); }
+  if(['ArrowUp','ArrowLeft'].includes(e.key)){ e.preventDefault(); goPrev(); }
 });
 
-// Touch swipe
-let touchY=0;
-window.addEventListener('touchstart',e=>{touchY=e.touches[0].clientY;},{passive:true});
+let ty0=0;
+window.addEventListener('touchstart',e=>{ ty0=e.touches[0].clientY; },{passive:true});
 window.addEventListener('touchend',e=>{
-  const dy=touchY-e.changedTouches[0].clientY;
-  if(Math.abs(dy)>40){dy>0?next():prev();}
+  const dy=ty0-e.changedTouches[0].clientY;
+  if(Math.abs(dy)>45){ dy>0?goNext():goPrev(); }
 },{passive:true});
+
+// re-layout on resize
+window.addEventListener('resize',()=>{
+  if(!scores.length)return;
+  const deck=document.getElementById('deck');
+  const cardW=deck.offsetWidth||300;
+  deck.style.height=(Math.round(cardW*(3/4))+60)+'px';
+  applyPositions(false);
+});
 
 // ── FETCH ──
 async function loadGallery(){
   try{
     const res=await fetch(
       `${SUPABASE_URL}/rest/v1/scores?order=created_at.desc&limit=100`,
-      {headers:{'Authorization':`Bearer ${SUPABASE_ANON_KEY}`,'apikey':SUPABASE_ANON_KEY}}
+      {headers:{Authorization:`Bearer ${SUPABASE_ANON_KEY}`,apikey:SUPABASE_ANON_KEY}}
     );
     if(!res.ok)throw new Error('불러오기 실패 '+res.status);
     scores=await res.json();
     document.getElementById('loading').style.display='none';
     document.getElementById('count-label').textContent=scores.length+' scores';
-    if(!scores.length){document.getElementById('empty').style.display='flex';return;}
-    buildCards();
-    // show hint briefly
-    setTimeout(()=>{document.getElementById('hint').style.opacity='0';},4000);
+    if(!scores.length){ document.getElementById('empty').style.display='flex'; return; }
+    buildDeck();
+    setTimeout(()=>document.getElementById('hint').style.opacity='0', 3500);
   }catch(err){
     const l=document.getElementById('loading');
-    l.textContent='⚠ '+err.message;l.style.color='#cc6666';
+    l.textContent='⚠ '+err.message; l.style.color='#c0392b';
   }
 }
 loadGallery();
