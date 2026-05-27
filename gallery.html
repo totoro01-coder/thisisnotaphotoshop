@@ -89,7 +89,36 @@
     display:none; /* title shown in #card-label instead */
   }
 
-  /* LOADING / EMPTY */
+  /* DELETE BUTTON */
+  .del-btn{
+    position:absolute;top:8px;right:8px;
+    width:26px;height:26px;border-radius:50%;
+    background:rgba(0,0,0,.45);border:none;
+    color:rgba(255,255,255,.8);font-size:13px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    opacity:0;transition:opacity .2s,background .15s;
+    z-index:10;
+  }
+  .flow-card:hover .del-btn{ opacity:1; }
+  .del-btn:hover{ background:rgba(180,40,40,.85);color:#fff; }
+
+  /* CONFIRM DIALOG */
+  #del-dialog{
+    display:none;position:fixed;inset:0;z-index:500;
+    background:rgba(0,0,0,.5);align-items:center;justify-content:center;
+  }
+  #del-dialog.open{display:flex;}
+  #del-box{
+    background:#fff;border-radius:6px;padding:24px;
+    width:300px;display:flex;flex-direction:column;gap:14px;
+    box-shadow:0 8px 32px rgba(0,0,0,.2);
+  }
+  #del-box p{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#333;line-height:1.6;}
+  #del-box .del-row{display:flex;gap:8px;}
+  #del-confirm{flex:1;padding:8px;background:#c0392b;color:#fff;border:none;
+    border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;}
+  #del-cancel{flex:1;padding:8px;background:#eee;color:#555;border:none;
+    border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;}
   #loading,#empty{
     position:fixed;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:12px;
@@ -120,6 +149,16 @@
 
 <div id="hint">← 스크롤 · 방향키 · 스와이프 →</div>
 <div id="counter"></div>
+
+<div id="del-dialog">
+  <div id="del-box">
+    <p id="del-msg">이 악보를 삭제할까요?<br>삭제하면 복구할 수 없습니다.</p>
+    <div class="del-row">
+      <button id="del-confirm">삭제</button>
+      <button id="del-cancel">취소</button>
+    </div>
+  </div>
+</div>
 
 <div id="loading">불러오는 중...</div>
 <div id="empty" style="display:none">
@@ -288,7 +327,20 @@ function buildCards() {
     img.onerror = () => { img.style.background = '#d8d8d8'; };
 
     card.appendChild(img);
-    stage.appendChild(card);
+    // delete button
+    const delBtn=document.createElement('button');
+    delBtn.className='del-btn';
+    delBtn.textContent='✕';
+    delBtn.title='삭제';
+    delBtn.addEventListener('click',e=>{
+      e.stopPropagation();
+      pendingDeleteId=score.id;
+      pendingDeleteIdx=i;
+      document.getElementById('del-msg').textContent=
+        `"${score.title||'Untitled'}"을(를) 삭제할까요?\n삭제하면 복구할 수 없습니다.`;
+      document.getElementById('del-dialog').classList.add('open');
+    });
+    card.appendChild(delBtn);
 
     card.addEventListener('click', () => {
       const offset = i - current;
@@ -339,6 +391,41 @@ window.addEventListener('touchend', e => {
   const dx = tx0 - e.changedTouches[0].clientX;
   if (Math.abs(dx) > 40) { dx > 0 ? goNext() : goPrev(); }
 }, { passive: true });
+
+// ── DELETE ────────────────────────────────────
+let pendingDeleteId=null, pendingDeleteIdx=-1;
+
+document.getElementById('del-cancel').addEventListener('click',()=>{
+  document.getElementById('del-dialog').classList.remove('open');
+  pendingDeleteId=null; pendingDeleteIdx=-1;
+});
+
+document.getElementById('del-confirm').addEventListener('click',async()=>{
+  if(!pendingDeleteId) return;
+  const id=pendingDeleteId, idx=pendingDeleteIdx;
+  document.getElementById('del-dialog').classList.remove('open');
+  try{
+    const res=await fetch(
+      `${SUPABASE_URL}/rest/v1/scores?id=eq.${id}`,
+      {method:'DELETE',
+       headers:{Authorization:`Bearer ${SUPABASE_ANON_KEY}`,apikey:SUPABASE_ANON_KEY}}
+    );
+    if(!res.ok) throw new Error('삭제 실패 '+res.status);
+    scores.splice(idx,1);
+    if(current>=scores.length) current=Math.max(0,scores.length-1);
+    document.getElementById('count-label').textContent=scores.length+' scores';
+    if(!scores.length){
+      document.getElementById('empty').style.display='flex';
+      document.getElementById('stage').innerHTML='';
+      document.getElementById('counter').textContent='';
+      document.getElementById('card-title').textContent='';
+      document.getElementById('card-meta').textContent='';
+    } else {
+      buildCards();
+    }
+  }catch(err){ alert('삭제 오류: '+err.message); }
+  pendingDeleteId=null; pendingDeleteIdx=-1;
+});
 
 // ── FETCH ────────────────────────────────────
 async function loadGallery() {
