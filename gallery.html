@@ -171,8 +171,8 @@
 // ══════════════════════════════════════════════
 // SUPABASE CONFIG — 아래 두 값을 본인 프로젝트 값으로 교체하세요
 // ══════════════════════════════════════════════
-const SUPABASE_URL = 'https://hbzwlrawarhmxkjhkixd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiendscmF3YXJobXhramhraXhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDY0NTUsImV4cCI6MjA5NTM4MjQ1NX0.6RNlIskTtWGN-99HBIPqHI7eR8mheVPg1Yuq9JyCNZ8';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
 // ── CARD LAYOUT ──────────────────────────────
 // How each offset position looks:
@@ -431,7 +431,7 @@ document.getElementById('del-confirm').addEventListener('click',async()=>{
 async function loadGallery() {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/scores?order=created_at.desc&limit=100`,
+      `${SUPABASE_URL}/rest/v1/scores?select=*&order=created_at.desc&limit=100`,
       { headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, apikey: SUPABASE_ANON_KEY } }
     );
     if (!res.ok) throw new Error('불러오기 실패 ' + res.status);
