@@ -1782,14 +1782,16 @@ document.getElementById('btn-qr').addEventListener('click',async()=>{
   document.getElementById('status-msg').textContent='QR 생성 중...';
 
   try{
-    // 1. make thumbnail
+    // 1. make 400x400 square thumbnail
     const canvas=mergeCanvases();
     const thumb=document.createElement('canvas');
-    thumb.width=200; thumb.height=150;
+    thumb.width=400; thumb.height=400;
     const tc=thumb.getContext('2d');
-    tc.fillStyle='white'; tc.fillRect(0,0,200,150);
-    tc.drawImage(canvas,0,0,W,H,0,0,200,150);
-    const imageData=thumb.toDataURL('image/jpeg',0.75);
+    tc.fillStyle='white'; tc.fillRect(0,0,400,400);
+    const srcSize=Math.min(W,H);
+    const srcX=(W-srcSize)/2, srcY=(H-srcSize)/2;
+    tc.drawImage(canvas,srcX,srcY,srcSize,srcSize,0,0,400,400);
+    const imageData=thumb.toDataURL('image/jpeg',0.88);
 
     // 2. auto title
     const autoTitle='Score #'+Date.now().toString().slice(-5);
@@ -2040,13 +2042,15 @@ document.getElementById('upload-confirm').addEventListener('click',async()=>{
   statusEl.textContent='이미지 압축 중...'; statusEl.style.color='#888';
 
   try{
-    // 1. resize canvas to thumbnail (200x150) and encode as base64
+    // 1. resize canvas to 400x400 square thumbnail
     const thumb=document.createElement('canvas');
-    thumb.width=200; thumb.height=150;
+    thumb.width=400; thumb.height=400;
     const tc=thumb.getContext('2d');
-    tc.fillStyle='white'; tc.fillRect(0,0,200,150);
-    tc.drawImage(_uploadCanvas, 0,0, W,H, 0,0, 200,150);
-    const imageData=thumb.toDataURL('image/jpeg',0.75); // JPEG 75% = ~15-30KB
+    tc.fillStyle='white'; tc.fillRect(0,0,400,400);
+    const srcSize=Math.min(W,H);
+    const srcX=(W-srcSize)/2, srcY=(H-srcSize)/2;
+    tc.drawImage(_uploadCanvas,srcX,srcY,srcSize,srcSize,0,0,400,400);
+    const imageData=thumb.toDataURL('image/jpeg',0.88);
 
     // 2. insert row into scores table (no Storage needed)
     statusEl.textContent='데이터 저장 중...';
